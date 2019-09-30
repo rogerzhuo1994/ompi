@@ -27,6 +27,8 @@
 #include "coll_portals4.h"
 #include "coll_portals4_request.h"
 
+#include "ompi/mca/coll/ipmulticast/bcast.h"
+
 #include "mpi.h"
 #include "ompi/op/op.h"
 #include "ompi/datatype/ompi_datatype_internal.h"
@@ -625,7 +627,9 @@ portals4_comm_query(struct ompi_communicator_t *comm,
     portals4_module->cached_in_order_bmtree=NULL;
     portals4_module->cached_in_order_bmtree_root=-1;
 
-    portals4_module->super.coll_bcast = ompi_coll_portals4_bcast_intra;
+	// Use IP Multicast for Bcast
+    // portals4_module->super.coll_bcast = ompi_coll_portals4_bcast_intra;
+    portals4_module->super.coll_bcast = ompi_coll_ipmulticast_bcast;
     portals4_module->super.coll_ibcast = ompi_coll_portals4_ibcast_intra;
 
     portals4_module->super.coll_allreduce = ompi_coll_portals4_allreduce_intra;
