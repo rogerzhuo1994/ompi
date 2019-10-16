@@ -46,6 +46,7 @@ Don't be alarmed if it does.
     cd ~
     git clone https://github.com/ptaffet/ompi.git
     git checkout ipmulticast
+    ./autogen.pl
     mkdir _build _install
     cd _build
     ../configure --prefix=`pwd`/../_install --with-portals4=/PATH/TO/portals4/_install
