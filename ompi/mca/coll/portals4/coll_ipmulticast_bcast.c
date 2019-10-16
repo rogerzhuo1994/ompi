@@ -1,7 +1,4 @@
 
-#ifndef MCA_COLL_IPMULTICAST_EXPORT_H
-#define MCA_COLL_IPMULTICAST_EXPORT_H
-
 #include "ompi_config.h"
 
 #include "mpi.h"
@@ -17,13 +14,14 @@
 #include "ompi/mca/coll/base/base.h"
 #include "ompi/datatype/ompi_datatype.h"
 
-#include "ompi/mca/coll/portals4/coll_portals4.h"
+#include "coll_ipmulticast_bcast.h"
+#include "coll_portals4.h"
 
-BEGIN_C_DECLS
 
 #define IP_MULTICAST_PORT 12441
 #define IP_MULTICAST_ADDR "224.0.0.7"
 #define MAX_BCAST_SIZE 512
+
 
 typedef struct {
 	bool is_root;
@@ -228,4 +226,3 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 }
 
 END_C_DECLS
-#endif

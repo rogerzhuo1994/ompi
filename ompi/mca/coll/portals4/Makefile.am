@@ -19,7 +19,8 @@ local_sources = \
 	coll_portals4_gather.c \
 	coll_portals4_scatter.c \
 	coll_portals4_request.h \
-	coll_portals4_request.c
+	coll_portals4_request.c \
+	coll_ipmulticast_bcast.c
 
 if MCA_BUILD_ompi_coll_portals4_DSO
 component_noinst =

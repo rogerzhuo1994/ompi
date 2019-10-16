@@ -27,7 +27,7 @@
 #include "coll_portals4.h"
 #include "coll_portals4_request.h"
 
-#include "ompi/mca/coll/ipmulticast/bcast.h"
+#include "coll_ipmulticast_bcast.h"
 
 #include "mpi.h"
 #include "ompi/op/op.h"
