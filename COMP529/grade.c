@@ -7,10 +7,11 @@
 #include <string.h>
 
 
-#define LARGEBUFFERSIZE (1000*1000)  // approx 4 GB
-#define SMALLBUFFERSIZE 50 // approx 200 B
+#define HUGEBUFFERSIZE (10*1024/8*1024*1024) // 10 GB
+#define LARGEBUFFERSIZE (1000*1000)  // approx 8 MB
+#define SMALLBUFFERSIZE 25 // approx 200 B
 
-#define RUNTIME 10.0 // seconds
+#define RUNTIME 1.0 // seconds
 #define PER_MESSAGE_OVERHEAD 0.0001 // seconds. No idea if this is right
 #define BANDWIDTH 1.25e9 // Bytes/sec = 10 Gbps
 int buffersize = 0;
@@ -21,17 +22,23 @@ bool rotate_sender = false;
 int nlate = 0;
 int nsubcomm  = 1;
 
-static void fill(int seed, int* buffer) {
+static inline unsigned long nextrand() {
+	unsigned long toreturn = rand();
+	toreturn <<= 32;
+	toreturn |= rand();
+	return toreturn;
+}
+static void fill(int seed, unsigned long* buffer) {
 	srand(seed);
 	for (int i = 0; i < buffersize; i++)
-		buffer[i] = rand();
+		buffer[i] = nextrand();
 }
-static void validate(int seed, int* buffer) {
+static void validate(int seed, unsigned long* buffer) {
 	srand(seed);
 	for (int i = 0; i < buffersize; i++) {
-		int expected = rand();
+		unsigned long expected = nextrand();
 		if (buffer[i] != expected) {
-			printf("Buffer data validation error. For seed %d, at position %d, buffer contained %d but %d was expected.\n", seed, i, buffer[i], expected);
+			printf("Buffer data validation error. For seed %d, at position %d, buffer contained %lu but %lu was expected.\n", seed, i, buffer[i], expected);
 			abort();
 		}
 	}
@@ -40,15 +47,15 @@ static void validate(int seed, int* buffer) {
 volatile double k;
 static void stall() {
 	double t = 1.0;
-	for (int i = 0; i < 1000000000; i++) {
+	for (int i = 0; i < 500000000; i++) {
 		t = t/2+1;
 	}
 	k += t;
 }
 static void usage(const char* step) {
 	fprintf(stderr, "Error parsing %s\n", step);
-	fprintf(stderr, "Usage: ./grade -z {small, large, mix} -y {yes, no} -s {0-3 | mix} -l {0-3} -b {1-3}\n");
-	fprintf(stderr, "\t -z: Message size. small=200B, large = ~8 GB\n");
+	fprintf(stderr, "Usage: ./grade -z {small, large, huge, mix} -y {yes, no} -s {0-3 | mix} -l {0-3} -b {1-3}\n");
+	fprintf(stderr, "\t -z: Message size. small=200B, large = ~8 MB, huge = 10 GB\n");
 	fprintf(stderr, "\t -y: Syncronize between each broadcast\n");
 	fprintf(stderr, "\t -s: Fix a sender or rotate between senders\n");
 	fprintf(stderr, "\t -l: Number of late arrivers to the broadcast\n");
@@ -72,6 +79,8 @@ int main(int argc, char** argv) {
 					buffersize = SMALLBUFFERSIZE;
 				} else if (strcmp(optarg, "large") == 0) {
 					buffersize = LARGEBUFFERSIZE;
+				} else if (strcmp(optarg, "huge") == 0) {
+					buffersize = HUGEBUFFERSIZE;
 				} else if (strcmp(optarg, "mix") == 0) {
 					buffersize = LARGEBUFFERSIZE;
 					mix_message_sizes = true;
@@ -109,12 +118,13 @@ int main(int argc, char** argv) {
 		}
 	}
 	if (rank == 1) {
-		printf("Running with buffer %lu bytes (mixed = %d). Synchronization: %d, sender: %d (rotating = %d), nlate: %d, subcomm: %d\n", buffersize*sizeof(int), (int) mix_message_sizes, (int) synchronize, sender, (int)rotate_sender, nlate, nsubcomm);
+		printf("Running with buffer %lu bytes (mixed = %d). Synchronization: %d, sender: %d (rotating = %d), nlate: %d, subcomm: %d\n", buffersize*sizeof(unsigned long), (int) mix_message_sizes, (int) synchronize, sender, (int)rotate_sender, nlate, nsubcomm);
 	}
 
-	int* buffer = malloc(buffersize * sizeof(int));
-	int nrounds = (int) (RUNTIME / (PER_MESSAGE_OVERHEAD + sizeof(int) * buffersize / BANDWIDTH ));
-	buffer[0] = 0;
+	unsigned long* buffer = malloc(buffersize * sizeof(unsigned long));
+	int nrounds = (int) (RUNTIME / (PER_MESSAGE_OVERHEAD + (.1 * (nlate > 0)) + sizeof(unsigned long) * buffersize / BANDWIDTH ));
+	if (nrounds <= 0)
+		nrounds = 1;
 	if (rank == 0)
 		printf("Running %d rounds\n", nrounds);
 
@@ -132,10 +142,13 @@ int main(int argc, char** argv) {
 	
 	size_t bytes = 0;
 	double start = MPI_Wtime();
+	double end = 0;
 
 	for (int i = 0; i < nrounds; i++) {
-		if (subcomm_rank == 0)
-			printf("%d of %d\n", i, nrounds);
+		if (subcomm_rank == 0) {
+			printf("%d of %d\r", i, nrounds);
+			fflush(stdout);
+		}
 		if (synchronize) {
 			MPI_Barrier(bcast_comm);
 		}
@@ -152,13 +165,19 @@ int main(int argc, char** argv) {
 
 		if (subcomm_rank == root)
 			fill(i+100*communicator_num, buffer);
-		MPI_Bcast(buffer, message_size, MPI_INT, root, bcast_comm);
+		if (nrounds == 1)
+			start = MPI_Wtime(); // Don't include time to fill
+
+		MPI_Bcast(buffer, message_size, MPI_UNSIGNED_LONG, root, bcast_comm);
+		if (nrounds == 1)
+			end = MPI_Wtime();
 		if (subcomm_rank != root)
 			validate(i+100*communicator_num, buffer);
 
-		bytes += message_size * sizeof(int);
+		bytes += message_size * sizeof(unsigned long);
 	}
-	double end = MPI_Wtime();
+	if (nrounds > 1)
+		end = MPI_Wtime();
 	if (rank == 0)
 		printf("Transferred %zd bytes in %f seconds: %f Gbps\n", bytes, end - start, bytes/(end-start) * 8 * 1e-9);
 	MPI_Finalize();
