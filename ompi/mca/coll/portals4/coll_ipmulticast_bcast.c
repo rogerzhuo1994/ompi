@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "ompi_config.h"
 
@@ -19,10 +21,6 @@
 
 #include "coll_rudp_bcast.h"
 #include "util.h"
-
-#define IP_MULTICAST_PORT 12441
-#define IP_MULTICAST_ADDR "224.0.0.7"
-#define MAX_BCAST_SIZE 512
 
 int initialized = 0;
 
@@ -144,7 +142,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         initialized = 1;
     }
 
-	ompi_coll_ipmulticast_request_t request;
+    int comm_id = 0;
+    int rank = ompi_comm_rank(comm);
+
+    ompi_coll_ipmulticast_request_t request;
 
 	prepare_bcast_data(comm, buff, count, datatype, root, &request);
 
@@ -184,22 +185,55 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 	// This kills performance but makes sure that all receivers are ready before the sender starts
     ompi_coll_portals4_barrier_intra(comm, module);
 
-    ssize_t nbytes;
+    size_t nbytes;
     if (request.is_root) {
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
 
 		// First send the size so that the receivers know how many messages to expect
 		// TODO: There are better ways to do this, no?
 
-        nbytes = sendto(fd, &request.data_size, sizeof(size_t), 0, (struct sockaddr*) &addr, sizeof(addr));
-		if (nbytes < 0)
-			perror("sendto for size");
-		// printf("Sent %zd for size\n", nbytes);
-		char* send_next = request.data;
-		size_t size_remaining = request.data_size;
+		//-------------------EDITED BY ROGER STARTS-----------------------
+        //-------------------SEND START_MSG-------------------------------
+		start_msg_t* msg = (start_msg*)malloc(sizeof(start_msg));
+		msg->sender = rank;
+		msg->msg_type = START_MSG;
+		msg->comm_id = comm_id;
+		msg->sequence = ++comm_process_seq[rank][comm_id];
+		msg->size = request.data_size;
+
+		nbytes = sendto(fd, msg, sizeof(start_msg), 0, (struct sockaddr*) &addr, sizeof(addr));
+        if (nbytes < 0)
+            perror("sendto for size");
+        free(msg)
+        //-------------------EDITED BY ROGER ENDS-------------------------
+
+        //-------------------EDITED BY ROGER STARTS-----------------------
+        //-------------------SEND DT_MSG----------------------------------
+        size_t size_remaining = request.data_size;
+        size_t dt_size;
+        dt_msg_t* dt_msg;
+        char* send_next = request.data;
+        int index = 0;
+
+        if (size_remaining > MAX_BCAST_SIZE){
+            msg = (dt_msg_t*)malloc(sizeof(dt_msg_t) + sizeof(char) * MAX_BCAST_SIZE);
+        }else{
+            msg = (dt_msg_t*)malloc(sizeof(dt_msg_t) + sizeof(char) * size_remaining);
+        }
+
+        // printf("Sent %zd for size\n", nbytes);
 		while (size_remaining > 0) {
 			// TODO: UDP does not guarauntee ordering!!
-			nbytes = sendto(fd, send_next, MIN(size_remaining, MAX_BCAST_SIZE), 0, (struct sockaddr*) &addr, sizeof(addr));
+
+			memcpy(&(dt_msg->data), send_next, dt_size);
+			dt_msg->msg_type = DT_MSG;
+            dt_msg->sender = rank;
+            dt_msg->size = MIN(size_remaining, MAX_BCAST_SIZE);
+            dt_msg->sequence = ++comm_process_seq[rank][comm_id];
+            dt_msg->comm_id = comm_id;
+            dt_msg->index = index++;
+
+			nbytes = sendto(fd, send_next, sizeof(dt_msg_t)+dt_msg->size, 0, (struct sockaddr*) &addr, sizeof(addr));
 			if (nbytes < 0)
 				perror("sendto");
 
@@ -207,6 +241,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 			size_remaining -= nbytes;
 			send_next += nbytes;
 		}
+        //-------------------EDITED BY ROGER ENDS-------------------------
     }
 	else {
 		int addrlen = sizeof(addr);
