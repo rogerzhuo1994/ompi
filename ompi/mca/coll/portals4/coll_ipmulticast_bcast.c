@@ -17,11 +17,14 @@
 #include "coll_ipmulticast_bcast.h"
 #include "coll_portals4.h"
 
+#include "coll_rudp_bcast.h"
+#include "util.h"
 
 #define IP_MULTICAST_PORT 12441
 #define IP_MULTICAST_ADDR "224.0.0.7"
 #define MAX_BCAST_SIZE 512
 
+int initialized = 0;
 
 typedef struct {
 	bool is_root;
@@ -135,6 +138,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct ompi_datatype_t *datatype, int root,
         struct ompi_communicator_t *comm,mca_coll_base_module_t *module) {
     printf("Calling custom bcast\n");
+
+    if (initialized == 0){
+        queue = initQueue();
+        initialized = 1;
+    }
 
 	ompi_coll_ipmulticast_request_t request;
 
