@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
 	}
 
 	unsigned long* buffer = malloc(buffersize * sizeof(unsigned long));
-	int nrounds = (int) (RUNTIME / (PER_MESSAGE_OVERHEAD + (.1 * (nlate > 0)) + sizeof(unsigned long) * buffersize / BANDWIDTH ));
+	int nrounds = (int) (RUNTIME / (PER_MESSAGE_OVERHEAD + (.05 * (nlate > 0)) + sizeof(unsigned long) * buffersize / BANDWIDTH ));
 	if (nrounds <= 0)
 		nrounds = 1;
 	if (rank == 0)
@@ -131,8 +131,30 @@ int main(int argc, char** argv) {
 	MPI_Comm bcast_comm;
 	if (nsubcomm == 1)
 		bcast_comm = MPI_COMM_WORLD;
-	else
-		MPI_Comm_split(MPI_COMM_WORLD, rank % nsubcomm, rank, &bcast_comm);
+	else {
+		int color = rank % nsubcomm;
+		int ranks_in_my_group = size / nsubcomm;
+		if (color < size % nsubcomm)
+			ranks_in_my_group++;
+
+		int* ranks = malloc(ranks_in_my_group * sizeof(int));
+		for (int i = 0; i < ranks_in_my_group; i++)
+			ranks[i] = color + nsubcomm * i;
+
+		MPI_Group world_g;
+		MPI_Comm_group(MPI_COMM_WORLD, &world_g);
+
+		MPI_Group subcomm_g;
+		MPI_Group_incl(world_g, ranks_in_my_group, ranks, &subcomm_g);
+		MPI_Comm_create_group(MPI_COMM_WORLD, subcomm_g, 0, &bcast_comm);
+
+		free(ranks);
+		MPI_Group_free(&world_g);
+		MPI_Group_free(&subcomm_g);
+
+		// Bug in Portals4 prevents this line from working:
+		// MPI_Comm_split(MPI_COMM_WORLD, rank % nsubcomm, rank, &bcast_comm);
+	}
 	int communicator_num = rank % nsubcomm;
 
 	int subcomm_rank, subcomm_size;
