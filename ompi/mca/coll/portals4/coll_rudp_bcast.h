@@ -23,6 +23,14 @@
 
 #define BUFFER_SIZE 256
 
+#define RECVFROM_TIMEOUT_MILLS 20
+
+#define SENDING_STATUS 0
+#define RECEIVING_METADATA_STATUS 1
+#define RECEIVING_DATA_STATUS 2
+
+#define MAX_MSG_SIZE (sizeof(_dt_msg_t) + MAX_BCAST_SIZE)
+
 typedef struct _start_msg_t {
     int msg_type;
     int comm_id;
@@ -57,8 +65,39 @@ typedef struct _end_msg_t {
     int receiver;
 } end_msg_t;
 
-int comm_process_seq[NUM_PROCESS][MAX_COMM];
+typedef struct _msg_header_t {
+    int msg_type;
+    int comm_id;
+    int sender;
+} msg_header_t;
 
-Queue* msg_buffer;
+typedef struct _bcast_msg_t {
+    int msg_type;
+    int comm_id;
+    int sender;
+    int receiver;
+    long sequence;
+    size_t t_size;
+    size_t dt_size;
+    int index;
+    char data[];
+} bcast_msg_t;
+
+
+int comm_process_seq[NUM_PROCESS][MAX_COMM];
+int comm_rank_num[MAX_COMM];
+
+Queue* msg_buffer[MAX_COMM];
+
+dt_msg_t* dt_msg;
+start_msg_t* start_msg;
+end_msg_t* end_msg;
+nack_msg_t* nack_msg;
+
+void* recv_msg;
+dt_msg_t* recv_dt_msg;
+start_msg_t* recv_start_msg;
+end_msg_t* recv_end_msg;
+nack_msg_t* recv_nack_msg;
 
 #endif //OMPI_COLL_R_BCAST_H

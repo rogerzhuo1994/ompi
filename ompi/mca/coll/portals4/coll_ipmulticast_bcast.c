@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "ompi_config.h"
 
@@ -23,6 +24,7 @@
 #include "util.h"
 
 int initialized = 0;
+void* recv_msg = malloc(MAX_MSG_SIZE);
 
 typedef struct {
 	bool is_root;
@@ -129,21 +131,74 @@ static int post_bcast_data(	ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
+int bcast_receiving_msg(){
+    int addrlen = sizeof(addr);
+
+    ssize_t nbytes;
+    // Get the size
+    nbytes = recvfrom(fd, &request.data_size, sizeof(size_t), 0, (struct sockaddr *) &addr, &addrlen);
+    if (nbytes < 0)
+        perror("recvfrom for size");
+    size_t size_remaining = request.data_size;
+    // printf("Received %zd for size. Size is %zu\n", nbytes, size_remaining);
+    char* recv_next = request.data;
+    while (size_remaining > 0) {
+        nbytes = recvfrom(fd, recv_next, MIN(size_remaining, MAX_BCAST_SIZE), 0, (struct sockaddr *) &addr, &addrlen);
+        if (nbytes < 0)
+            perror("recvfrom");
+        recv_next += nbytes;
+        size_remaining -= nbytes;
+        // printf("Received %zd\n", nbytes);
+    }
+}
+
+void* find_msg_in_buffer(int msg_type, int rank, int comm_id, int sequence){
+    Queue* buf = msg_buffer[comm_id];
+    void* msg;
+    int count = 0;
+    while(buf->cur != -1){
+        msg = buf->cur->data;
+        if (((msg_header_t*)msg)->msg_type == msg_type){
+            if (msg_type == START_MSG && ((start_msg_t *)msg)->sequence == sequence
+                || msg_type == END_MSG && ((end_msg_t *)msg)->sequence == sequence
+                || msg_type == DT_MSG && ((dt_msg_t *)msg)->sequence == sequence){
+                return msg;
+            }
+        }
+        moveToNext(buf);
+        count++;
+    }
+    if(count != queue->length){
+        perror("buffer length error");
+    }
+    return -1;
+}
+
+int process_start_msg(start_msg_t* msg, int rank, int comm_id, int sequence){
 
 
+    return -1;
+}
+
+int receive_msg()
 
 int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct ompi_datatype_t *datatype, int root,
         struct ompi_communicator_t *comm,mca_coll_base_module_t *module) {
     printf("Calling custom bcast\n");
 
-    if (initialized == 0){
-        queue = initQueue();
-        initialized = 1;
-    }
-
     int comm_id = 0;
     int rank = ompi_comm_rank(comm);
+    MPI_Comm_size(comm, &(comm_rank_num[comm_id]));
+
+    if (initialized == 0){
+        msg_buffer[comm_id] = initQueue();
+
+        dt_msg = (dt_msg_t*)malloc(sizeof(dt_msg_t) + sizeof(char) * MAX_BCAST_SIZE);
+        start_msg = (start_msg*)malloc(sizeof(start_msg));
+
+        initialized = 1;
+    }
 
     ompi_coll_ipmulticast_request_t request;
 
@@ -160,7 +215,15 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(IP_MULTICAST_PORT);
-	
+
+    //-------------------EDITED BY ROGER STARTS-----------------------
+    //-------------------SET SOCKET TIMEOUT---------------------------
+    struct timeval tv;
+    tv.tv_sec = 0;                              // secs Timeout
+    tv.tv_usec = RECVFROM_TIMEOUT_MILLS;        // milliseconds Timeout
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
+    //-------------------EDITED BY ROGER ENDS-------------------------
+
 	// If we're not sending, get ready to receive
     if (!request.is_root) {
         bool yes = true;
@@ -185,7 +248,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 	// This kills performance but makes sure that all receivers are ready before the sender starts
     ompi_coll_portals4_barrier_intra(comm, module);
 
-    size_t nbytes;
+    ssize_t nbytes;
     if (request.is_root) {
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
 
@@ -194,7 +257,6 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
 		//-------------------EDITED BY ROGER STARTS-----------------------
         //-------------------SEND START_MSG-------------------------------
-		start_msg_t* msg = (start_msg*)malloc(sizeof(start_msg));
 		msg->sender = rank;
 		msg->msg_type = START_MSG;
 		msg->comm_id = comm_id;
@@ -202,24 +264,16 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		msg->size = request.data_size;
 
 		nbytes = sendto(fd, msg, sizeof(start_msg), 0, (struct sockaddr*) &addr, sizeof(addr));
-        if (nbytes < 0)
+        if (nbytes < 0 || nbytes != sizeof(start_msg))
             perror("sendto for size");
-        free(msg)
         //-------------------EDITED BY ROGER ENDS-------------------------
 
         //-------------------EDITED BY ROGER STARTS-----------------------
         //-------------------SEND DT_MSG----------------------------------
         size_t size_remaining = request.data_size;
         size_t dt_size;
-        dt_msg_t* dt_msg;
         char* send_next = request.data;
         int index = 0;
-
-        if (size_remaining > MAX_BCAST_SIZE){
-            msg = (dt_msg_t*)malloc(sizeof(dt_msg_t) + sizeof(char) * MAX_BCAST_SIZE);
-        }else{
-            msg = (dt_msg_t*)malloc(sizeof(dt_msg_t) + sizeof(char) * size_remaining);
-        }
 
         // printf("Sent %zd for size\n", nbytes);
 		while (size_remaining > 0) {
@@ -234,16 +288,102 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             dt_msg->index = index++;
 
 			nbytes = sendto(fd, send_next, sizeof(dt_msg_t)+dt_msg->size, 0, (struct sockaddr*) &addr, sizeof(addr));
-			if (nbytes < 0)
+			if (nbytes < 0 || nbytes != sizeof(dt_msg_t)+dt_msg->size)
 				perror("sendto");
 
 			// printf("Sent %zd\n", nbytes);
-			size_remaining -= nbytes;
-			send_next += nbytes;
+			size_remaining -= dt_msg->size;
+			send_next += dt_msg->size;
 		}
+
         //-------------------EDITED BY ROGER ENDS-------------------------
+
+        //-------------------EDITED BY ROGER STARTS-----------------------
+        //-------------------WAITING REPLIES------------------------------
+
+        int end_received = 0;
+        msg_header_t* msg_header = (msg_header_t)recv_msg;
+
+        int end_received_flags[comm_rank_num[comm_id]];
+        memset(end_received_flags, 0, sizeof(end_received_flags));
+        end_received_flags[rank] = 1;
+
+        while (end_received < comm_rank_num[comm_id]) {
+            nbytes = recvfrom(fd, recv_msg, sizeof(msg_header_t), 0, (struct sockaddr *) &addr, &addrlen);
+
+            if (msg_header->sender == rank){
+                // skip message from myself
+                continue
+            }
+
+            if (msg_header->msg_type == START_MSG){
+                nbytes = recvfrom(fd, recv_msg+sizeof(msg_header_t), sizeof(start_msg_t)-sizeof(msg_header_t), 0, (struct sockaddr *) &addr, &addrlen);
+                recv_start_msg = recv_msg;
+                if (recv_start_msg->sequence < comm_process_seq[recv_start_msg->sender]){
+                    // stale message
+                    continue
+                } else {
+                    // TODO: next message or current message, add to buffer
+                }
+
+            }else if (msg_header->msg_type == END_MSG){
+                nbytes = recvfrom(fd, recv_msg+sizeof(msg_header_t), sizeof(end_msg_t)-sizeof(msg_header_t), 0, (struct sockaddr *) &addr, &addrlen);
+                recv_end_msg = recv_msg;
+                if (recv_end_msg->sequence < comm_process_seq[recv_end_msg->sender][comm_id] || recv_end_msg->receiver != rank){
+                    // stale message || not my message
+                    continue
+                }
+
+                if (recv_end_msg->sequence == comm_process_seq[recv_end_msg->sender][comm_id]){
+                    // current message, process
+                    if (end_received_flags[recv_end_msg->sender] == 1){
+                        perror("Receiving a wrong END_MSG")
+                    }
+                    end_received_flags[recv_end_msg->sender] = 1;
+                    end_received += 1;
+                    comm_process_seq[recv_end_msg->sender][comm_id] += 1;
+
+                    // TODO: look into buffer to find sequential messages
+
+
+                } else {
+                    // TODO: next message, add to buffer
+
+                }
+            }else if (msg_header->msg_type == NACK_MSG){
+                nbytes = recvfrom(fd, recv_msg+sizeof(msg_header_t), sizeof(nack_msg_t)-sizeof(msg_header_t), 0, (struct sockaddr *) &addr, &addrlen);
+
+            }else if (msg_header->msg_type == DT_MSG) {
+                nbytes = recvfrom(fd, recv_msg+sizeof(msg_header_t), sizeof(dt_msg_t)-sizeof(msg_header_t), 0, (struct sockaddr *) &addr, &addrlen);
+                nbytes = recvfrom(fd, recv_msg+sizeof(dt_msg_t), ((dt_msg_t*)recv_msg)->size, 0, (struct sockaddr *) &addr, &addrlen);
+
+
+            }else {
+                perror("invalid message received");
+            }
+
+            if (nbytes < 0){
+                perror("invalid message received");
+            }
+
+
+
+        }
+
+
+
+        //-------------------EDITED BY ROGER ENDS-------------------------
+
     }
 	else {
+//        struct timeval tp_start;
+//        struct timeval tp_cur;
+//        gettimeofday(&tp_start,NULL);
+//        gettimeofday(&tp_cur,NULL);
+//        if ((tp_cur->tv_sec - tp_start->tv_sec) * 10000 + (tp_cur->tv_usec - tp_start->tv_usec) >= MSG_LIVE_TIME){
+//            // timeout
+//        }
+
 		int addrlen = sizeof(addr);
 
 		// Get the size
