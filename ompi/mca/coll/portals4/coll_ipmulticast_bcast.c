@@ -129,10 +129,10 @@ static int post_bcast_data(	ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
-int test_translate(struct ompi_communicator_t *comm1){
+int test_translate(struct ompi_communicator_t *comm){
     ompi_group_t *thisgroup, *worldgroup;
-    ompi_comm_group(comm, &thisgroup);
-    ompi_comm_group(ompi_mpi_comm_world_addr, &worldgroup);
+    ompi_comm_group((ompi_communicator_t*)comm, &thisgroup);
+    ompi_comm_group((ompi_communicator_t*)ompi_mpi_comm_world_addr, &worldgroup);
     int size = ompi_group_size(thisgroup);
     int* globalranks = malloc(size*sizeof(int));
     int* localranks = malloc(size*sizeof(int));
