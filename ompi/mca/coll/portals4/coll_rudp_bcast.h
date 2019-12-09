@@ -29,47 +29,47 @@
 #define RECEIVING_METADATA_STATUS 1
 #define RECEIVING_DATA_STATUS 2
 
-#define MAX_MSG_SIZE (sizeof(_dt_msg_t) + MAX_BCAST_SIZE)
+#define MAX_MSG_SIZE (sizeof(_bcast_msg_t) + MAX_BCAST_SIZE)
 
-typedef struct _start_msg_t {
-    int msg_type;
-    int comm_id;
-    int sender;
-    int sequence;
-    size_t size;
-} start_msg_t;
-
-typedef struct _dt_msg_t {
-    int msg_type;
-    int comm_id;
-    int sender;
-    long sequence;
-    int size;
-    int index;
-    char data[];
-} dt_msg_t;
-
-typedef struct _nack_msg_t {
-    int msg_type;
-    int comm_id;
-    int sender;
-    int receiver;
-    long nack_sequence;
-} nack_msg_t;
-
-typedef struct _end_msg_t {
-    int msg_type;
-    int comm_id;
-    int sender;
-    long sequence;
-    int receiver;
-} end_msg_t;
-
-typedef struct _msg_header_t {
-    int msg_type;
-    int comm_id;
-    int sender;
-} msg_header_t;
+//typedef struct _start_msg_t {
+//    int msg_type;
+//    int comm_id;
+//    int sender;
+//    int sequence;
+//    size_t size;
+//} start_msg_t;
+//
+//typedef struct _dt_msg_t {
+//    int msg_type;
+//    int comm_id;
+//    int sender;
+//    long sequence;
+//    int size;
+//    int index;
+//    char data[];
+//} dt_msg_t;
+//
+//typedef struct _nack_msg_t {
+//    int msg_type;
+//    int comm_id;
+//    int sender;
+//    int receiver;
+//    long nack_sequence;
+//} nack_msg_t;
+//
+//typedef struct _end_msg_t {
+//    int msg_type;
+//    int comm_id;
+//    int sender;
+//    long sequence;
+//    int receiver;
+//} end_msg_t;
+//
+//typedef struct _msg_header_t {
+//    int msg_type;
+//    int comm_id;
+//    int sender;
+//} msg_header_t;
 
 typedef struct _bcast_msg_t {
     int msg_type;
@@ -83,21 +83,12 @@ typedef struct _bcast_msg_t {
     char data[];
 } bcast_msg_t;
 
-
 int comm_process_seq[NUM_PROCESS][MAX_COMM];
 int comm_rank_num[MAX_COMM];
 
 Queue* msg_buffer[MAX_COMM];
 
-dt_msg_t* dt_msg;
-start_msg_t* start_msg;
-end_msg_t* end_msg;
-nack_msg_t* nack_msg;
-
 void* recv_msg;
-dt_msg_t* recv_dt_msg;
-start_msg_t* recv_start_msg;
-end_msg_t* recv_end_msg;
-nack_msg_t* recv_nack_msg;
+void* send_msg;
 
 #endif //OMPI_COLL_R_BCAST_H

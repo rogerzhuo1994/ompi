@@ -25,6 +25,7 @@
 
 int initialized = 0;
 void* recv_msg = malloc(MAX_MSG_SIZE);
+void* send_msg = malloc(MAX_MSG_SIZE);
 
 typedef struct {
 	bool is_root;
@@ -103,7 +104,7 @@ static int prepare_bcast_data (struct ompi_communicator_t *comm,
     return (OMPI_SUCCESS);
 }
 
-static int post_bcast_data(	ompi_coll_ipmulticast_request_t *request) {
+static int post_bcast_data(ompi_coll_ipmulticast_request_t *request) {
 
     int ret;
     size_t max_data;
