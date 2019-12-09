@@ -100,6 +100,7 @@ static int prepare_bcast_data (struct ompi_communicator_t *comm,
     return (OMPI_SUCCESS);
 }
 
+
 static int post_bcast_data(	ompi_coll_ipmulticast_request_t *request) {
 
     int ret;
@@ -128,6 +129,23 @@ static int post_bcast_data(	ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
+int test_translate(struct ompi_communicator_t *comm1){
+    ompi_group_t *thisgroup, *worldgroup;
+    ompi_comm_group(comm, &thisgroup);
+    ompi_comm_group(ompi_mpi_comm_world_addr, &worldgroup);
+    int size = ompi_group_size(thisgroup);
+    int* globalranks = malloc(size*sizeof(int));
+    int* localranks = malloc(size*sizeof(int));
+    for (int i = 0; i < size; i++) {
+        localranks[i] = i;
+
+    }
+    ompi_group_translate_ranks(thisgroup, size, localranks, worldgroup, globalranks);
+    for (int i = 0; i < size; i++) {
+        printf("Local: %d, global %d\n", localranks[i], globalranks[i]);
+    }
+    return 0;
+}
 
 
 
@@ -137,7 +155,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     printf("Calling custom bcast\n");
 
 	ompi_coll_ipmulticast_request_t request;
-
+    test_translate(comm);
 	prepare_bcast_data(comm, buff, count, datatype, root, &request);
 
 	// TODO: We don't need to create and destroy the socket every time
