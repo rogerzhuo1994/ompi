@@ -225,7 +225,7 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
         int flag = 1;
         if (comm_infos[i].initialized == 0) break;
 
-        for(int j = 0; j < size; j++){
+        for(int j = 0; j < NUM_PROCESS; j++){
             if (comm_infos[i].global_ranks[j] != globalranks[j]){
                 flag = 0;
                 break;
@@ -298,7 +298,7 @@ int receive_msg(int fd,
       // timeout return -1
       return -1;
     } else if(nbytes != sizeof(bcast_msg_t)){
-        perror("Receiving invalid msg header")
+        perror("Receiving invalid msg header");
     }
 
     nbytes = recvfrom(fd, recv_msg+ sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
@@ -540,7 +540,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // if is, skip, otherwise add to buffer
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
-                if (seq >= recv_msg_comm_info->proc_seq[sender]){
+                if (seq >= comm_info->proc_seq[sender]){
                     // future message, add to buffer
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
