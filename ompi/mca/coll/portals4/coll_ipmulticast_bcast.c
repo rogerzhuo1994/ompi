@@ -25,8 +25,7 @@
 
 int rank;
 int globalrank;
-bcast_msg_t* recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
-bcast_msg_t* send_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+int initialized = 0;
 
 typedef struct {
 	bool is_root;
@@ -378,6 +377,12 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct ompi_datatype_t *datatype, int root,
         struct ompi_communicator_t *comm,mca_coll_base_module_t *module) {
     printf("Calling custom bcast\n");
+
+    if (initialized == 0){
+        recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+        send_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+        initialized = 1;
+    }
 
     comm_info_t* comm_info;
     int comm_info_index = find_comm_info(&comm_info, comm);

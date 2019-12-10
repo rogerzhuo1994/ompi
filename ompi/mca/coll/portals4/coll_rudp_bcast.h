@@ -3,6 +3,7 @@
 //
 
 #include <stdio.h>
+#include "util.h"
 
 #ifndef OMPI_COLL_R_BCAST_H
 #define OMPI_COLL_R_BCAST_H
