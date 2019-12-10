@@ -11,10 +11,9 @@
 #define IP_MULTICAST_ADDR "224.0.0.7"
 #define MAX_BCAST_SIZE 512
 
-#define START_MSG   0
-#define DT_MSG      1
-#define NACK_MSG    2
-#define END_MSG     3
+#define DT_MSG      0
+#define NACK_MSG    1
+#define END_MSG     2
 
 #define NUM_PROCESS 4
 #define MAX_COMM    4
@@ -24,6 +23,8 @@
 #define BUFFER_SIZE 256
 
 #define RECVFROM_TIMEOUT_MILLS 20
+
+#define SENDER_HEARTBEAT_MILLS 20
 
 #define SENDING_STATUS 0
 #define RECEIVING_METADATA_STATUS 1
@@ -73,9 +74,8 @@
 
 typedef struct _bcast_msg_t {
     int msg_type;
-    int comm_id;
     int sender;
-    int receiver;
+    int receiver[NUM_PROCESS];
     long sequence;
     size_t t_size;
     size_t dt_size;
@@ -83,12 +83,17 @@ typedef struct _bcast_msg_t {
     char data[];
 } bcast_msg_t;
 
-int comm_process_seq[NUM_PROCESS][MAX_COMM];
-int comm_rank_num[MAX_COMM];
+typedef struct _comm_info_t {
+    int proc_seq[NUM_PROCESS];
+    int size;
+    int global_ranks[NUM_PROCESS];
+    int initialized;
+    Queue* msg_buffer;
+} comm_info_t;
 
-Queue* msg_buffer[MAX_COMM];
+comm_info_t comm_infos[MAX_COMM];
 
-void* recv_msg;
-void* send_msg;
+bcast_msg_t* recv_msg;
+bcast_msg_t* send_msg;
 
 #endif //OMPI_COLL_R_BCAST_H

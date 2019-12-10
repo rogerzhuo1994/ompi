@@ -3,6 +3,7 @@
 //
 
 #include <stdlib.h>
+#include "ompi/mca/coll/portals4/coll_rudp_bcast.h"
 #include "ompi/mca/coll/portals4/util.h"
 
 void* deQueue(Queue* queue){
@@ -11,7 +12,7 @@ void* deQueue(Queue* queue){
 };
 
 
-void enQueue(Queue* queue, void* data){
+void* enQueue(Queue* queue, void* data){
 
     QueueNode* node = (QueueNode *)malloc(sizeof(QueueNode));
     node->data = data;
@@ -28,6 +29,12 @@ void enQueue(Queue* queue, void* data){
     node->next = -1;
 
     queue->length++;
+
+    if (queue->length > BUFFER_SIZE){
+        return deQueue(queue);
+    }else{
+        return -1;
+    }
 };
 
 void* pop(Queue* queue, QueueNode* curNode){

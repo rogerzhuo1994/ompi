@@ -20,7 +20,7 @@ typedef struct _Queue{
 
 void* deQueue(Queue* queue);
 
-void enQueue(Queue* queue, void* data);
+void* enQueue(Queue* queue, void* data);
 
 Queue* initQueue();
 
