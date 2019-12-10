@@ -371,12 +371,13 @@ int preprocess_recv_msg(int comm_info_index){
                 if (recv_msg == -1){
                     recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                 }
-                return -1;
             }
         }else {
             perror("Wrong msg found, exit...");
         }
+        return -1;
     }
+
     return recv_msg_comm_info_index;
 }
 
@@ -645,21 +646,21 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                         memcpy(receive_next, recv_msg->data, recv_msg->dt_size);
                         receive_next += recv_msg->dt_size;
                         cur_index += 1;
-                        recv_msg_comm_info->proc_seq[sender] += 1;
+                        comm_info->proc_seq[sender] += 1;
                         buf_flag = 1;
                         gettimeofday(&start_time, NULL);
-                    } else if (seq > recv_msg_comm_info->proc_seq[sender]) {
+                    } else if (seq > comm_info->proc_seq[sender]) {
                         // future message, add to buffer
-                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                        recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
 
                 } else {
-                    if (seq >= recv_msg_comm_info->proc_seq[sender]){
+                    if (seq >= comm_info->proc_seq[sender]){
                         // future message, add to buffer
-                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                        recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
@@ -693,7 +694,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 int seq = recv_msg->sequence;
 
                 if(seq >= comm_info->proc_seq[sender]){
-                    recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                    recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
