@@ -133,18 +133,18 @@ static int post_bcast_data(ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
-void* find_msg_in_buffer(int msg_type, int rank, int comm_id, int sequence){
-    Queue* buf = msg_buffer[comm_id];
-    void* msg;
+int find_msg_in_buffer(comm_info_t* comm_info, int root_globalrank, int sequence){
+    Queue* buf = comm_info->msg_buffer;
+    bcast_msg_t* msg;
     int count = 0;
+
+    moveToHead(buf);
     while(buf->cur != -1){
         msg = buf->cur->data;
-        if (((msg_header_t*)msg)->msg_type == msg_type){
-            if (msg_type == START_MSG && ((start_msg_t *)msg)->sequence == sequence
-                || msg_type == END_MSG && ((end_msg_t *)msg)->sequence == sequence
-                || msg_type == DT_MSG && ((dt_msg_t *)msg)->sequence == sequence){
-                return msg;
-            }
+        if (msg->sequence == sequence and msg->sender == root_globalrank){
+            free(recv_msg);
+            recv_msg = pop(buf, buf->cur);
+            return 1;
         }
         moveToNext(buf);
         count++;
@@ -290,10 +290,6 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     return 1;
 }
 
-int process_dt_msg(){
-
-}
-
 int receive_msg(int fd,
                 struct sockaddr_in* addr){
     ssize_t nbytes;
@@ -308,10 +304,70 @@ int receive_msg(int fd,
 
     nbytes = recvfrom(fd, recv_msg+ sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
     if(nbytes != ((bcast_msg_t*)recv_msg)->dt_size){
-        perror("Receiving invalid msg data")
-=    }
+        perror("Receiving invalid msg data");
+    }
 
     return 0;
+}
+
+int preprocess_recv_msg(int comm_info_index){
+    // whether it's from myself
+    // if from myself, skip
+    if (recv_msg->sender == globalrank){
+        return -1;
+    }
+
+    // whether I'm one of the receivers
+    // if I'm not a receiver, skip
+    int flag = -1;
+    for (int i = 0; i < NUM_PROCESS; i++){
+        if ((recv_msg->receiver)[i] == globalrank){
+            flag = 1;
+            break;
+        }
+    }
+    if (flag == -1){
+        return -1;
+    }
+
+    // now can confirm the message is not from me and I'm one of the receiver
+    // find the communicator info
+    comm_info_t* recv_msg_comm_info;
+    int recv_msg_comm_info_index = find_msg_comm_info(&recv_msg_comm_info, recv_msg);
+
+    // whether the message is from the same communicator
+    if (recv_msg_comm_info_index != comm_info_index){
+        // not the same communicator
+        if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG){
+            // nack_msg from other communicator, probably stale message or early message
+            // stale message: skip
+            // early message: will be resent later, can be skipped as well
+
+            // end_msg from other communicator,
+            // when I'm the root, this end_msg is definitely not for me, skip
+            return -1;
+
+        }else if (recv_msg->msg_type == DT_MSG){
+            // probably something in the future or stale message, need check
+            // if stale message, skip, otherwise add to buffer
+            int sender = recv_msg->sender;
+            int seq = recv_msg->sequence;
+            if (seq <= recv_msg_comm_info->proc_seq[sender]){
+                // stale message, skip
+                return -1;
+            }else {
+                // future message, add to buffer
+                recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                if (recv_msg == -1){
+                    recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+                }
+                return -1;
+            }
+        }else {
+            perror("Wrong msg found, exit...");
+        }
+    }
+    return 1;
 }
 
 int ompi_coll_ipmulticast_bcast(void *buff, int count,
@@ -406,168 +462,206 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             elapsedTime = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_usec - start_time.tv_usec) / 1000.0;
             if (elapsedTime > SENDER_HEARTBEAT_MILLS){
                 // send out a heartbeat
-                prev_time = getcurTime();
                 send_msg->msg_type = NACK_MSG;
                 send_msg->sender = globalrank;
                 send_msg->receiver = comm_info->global_ranks;
                 send_msg->t_size = -1;
                 send_msg->index = -1;
-                send_msg->sequence = -1;
+                send_msg->sequence = startSeq;
                 send_msg->dt_size = -1;
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
                 if (nbytes < 0) perror("sendto");
+
+                gettimeofday(&start_time, NULL);
             }
 
             if (res == -1){
                 continue;
             }
 
-            // whether it's from myself
-            // if from myself, skip
-            if (recv_msg->sender == globalrank){
+
+            res = preprocess_recv_msg(comm_info_index);
+            if (res == -1){
                 continue;
             }
 
-            // whether I'm one of the receivers
-            // if I'm not a receiver, skip
-            int flag = -1;
-            for (int i = 0; i < NUM_PROCESS; i++){
-                if ((recv_msg->receiver)[i] == globalrank){
-                    flag = 1;
-                    break;
-                }
-            }
-            if (flag == -1){
-                continue;
-            }
+            // the same communicator
+            if (recv_msg->msg_type == NACK_MSG){
+                // nack_msg from the same communicator
+                // check whether is current bcast
+                // if is current bcast, retransmit the message
+                if (recv_msg->sequence >= startSeq && recv_msg->sequence <= endSeq){
+                    // current bcast
+                    send_msg->msg_type = DT_MSG;
+                    send_msg->sender = globalrank;
+                    send_msg->receiver = comm_info->global_ranks;
+                    send_msg->t_size = request.data_size;
+                    send_msg->index = recv_msg->index;
+                    send_msg->sequence = recv_msg->sequence;
+                    send_msg->dt_size = MIN(request.data_size - send_msg->index * MAX_BCAST_SIZE, MAX_BCAST_SIZE);
 
-            // now can confirm the message is not from me and I'm one of the receiver
-            // find the communicator info
-            comm_info_t* recv_msg_comm_info;
-            int recv_msg_comm_info_index = find_msg_comm_info(&recv_msg_comm_info, recv_msg);
+                    memcpy(&(send_msg->data), request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
+                    nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
 
-            // whether the message is from the same communicator
-            if (recv_msg_comm_info_index != comm_info_index){
-                // not the same communicator
-                if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG){
-                    // nack_msg from other communicator, probably stale message or early message
-                    // stale message: skip
-                    // early message: will be resent later, can be skipped as well
+                    if (nbytes < 0) perror("sendto");
 
-                    // end_msg from other communicator,
-                    // when I'm the root, this end_msg is definitely not for me, skip
+                } else{
+                    // not current bcast, skip
                     continue;
-
-                }else if (recv_msg->msg_type == DT_MSG){
-                    // probably something in the future or stale message, need check
-                    // if stale message, skip, otherwise add to buffer
-                    int sender = recv_msg->sender;
-                    int seq = recv_msg->sequence;
-                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
-                        // stale message, skip
-                        continue;
-                    }else {
-                        // future message, add to buffer
-                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if (recv_msg == -1){
-                            recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
-                        }
-                    }
-                }else {
-                    perror("Wrong msg found, exit...");
                 }
-            } else {
-                // the same communicator
-                if (recv_msg->msg_type == NACK_MSG){
-                    // nack_msg from the same communicator
-                    // check whether is current bcast
-                    // if is current bcast, retransmit the message
-                    if (recv_msg->sequence >= startSeq && recv_msg->sequence <= endSeq){
-                        // current bcast
-                        send_msg->msg_type = DT_MSG;
-                        send_msg->sender = globalrank;
-                        send_msg->receiver = comm_info->global_ranks;
-                        send_msg->t_size = recv_msg->t_size;
-                        send_msg->index = recv_msg->index;
-                        send_msg->sequence = recv_msg->sequence;
-                        send_msg->dt_size = MIN(request.data_size - send_msg->index * MAX_BCAST_SIZE, MAX_BCAST_SIZE);
-
-                        memcpy(&(send_msg->data), request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
-                        nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
-
-                        if (nbytes < 0) perror("sendto");
-
-                    } else{
-                        // not current bcast, skip
-                        continue;
-                    }
-                }else if (recv_msg->msg_type == END_MSG){
-                    // nack_msg from the same communicator
-                    // check whether is current bcast
-                    // if is current bcast, add 1
-                    if (recv_msg->sequence != startSeq){
-                        // probably not current bcast, skip
-                        continue;
-                    }
-
-                    for (int i = 0; i < NUM_PROCESS; i++){
-                        if (recv_msg_comm_info->global_ranks[i] == recv_msg->sender
-                            && end_received_proc[i] == 0) {
-                            end_received_proc[i] = 1;
-                            end_received += 1;
-                        }
-                    }
-
-                }else if (recv_msg->msg_type == DT_MSG){
-                    // dt_msg from the same communicator
-                    // check whether is stale message
-                    // if is, skip, otherwise add to buffer
-                    int sender = recv_msg->sender;
-                    int seq = recv_msg->sequence;
-                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
-                        // stale message, skip
-                        continue;
-                    }else {
-                        // future message, add to buffer
-                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if (recv_msg == -1){
-                            recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
-                        }
-                    }
-                }else {
-                    perror("Wrong msg found, exit...");
+            }else if (recv_msg->msg_type == END_MSG){
+                // nack_msg from the same communicator
+                // check whether is current bcast
+                // if is current bcast, add 1
+                if (recv_msg->sequence != startSeq){
+                    // probably not current bcast, skip
+                    continue;
                 }
+
+                for (int i = 0; i < NUM_PROCESS; i++){
+                    if (recv_msg_comm_info->global_ranks[i] == recv_msg->sender
+                        && end_received_proc[i] == 0) {
+                        end_received_proc[i] = 1;
+                        end_received += 1;
+                    }
+                }
+
+            }else if (recv_msg->msg_type == DT_MSG){
+                // dt_msg from the same communicator
+                // check whether is stale message
+                // if is, skip, otherwise add to buffer
+                int sender = recv_msg->sender;
+                int seq = recv_msg->sequence;
+                if (seq <= recv_msg_comm_info->proc_seq[sender]){
+                    // stale message, skip
+                    continue;
+                }else {
+                    // future message, add to buffer
+                    recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                    if (recv_msg == -1){
+                        recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+                    }
+                }
+            }else {
+                perror("Wrong msg found, exit...");
             }
+
         }
         //-------------------EDITED BY ROGER ENDS-------------------------
 
     }
-	else {
-//        struct timeval tp_start;
-//        struct timeval tp_cur;
-//        gettimeofday(&tp_start,NULL);
-//        gettimeofday(&tp_cur,NULL);
-//        if ((tp_cur->tv_sec - tp_start->tv_sec) * 10000 + (tp_cur->tv_usec - tp_start->tv_usec) >= MSG_LIVE_TIME){
-//            // timeout
-//        }
 
+
+	else {
 		int addrlen = sizeof(addr);
 
-		// Get the size
-		nbytes = recvfrom(fd, &request.data_size, sizeof(size_t), 0, (struct sockaddr *) &addr, &addrlen);
-		if (nbytes < 0)
-			perror("recvfrom for size");
-		size_t size_remaining = request.data_size;
-		// printf("Received %zd for size. Size is %zu\n", nbytes, size_remaining);
-		char* recv_next = request.data;
-		while (size_remaining > 0) {
-			nbytes = recvfrom(fd, recv_next, MIN(size_remaining, MAX_BCAST_SIZE), 0, (struct sockaddr *) &addr, &addrlen);
-			if (nbytes < 0)
-				perror("recvfrom");
-			recv_next += nbytes;
-			size_remaining -= nbytes;
-			// printf("Received %zd\n", nbytes);
+		int root_globalrank = comm_info->global_ranks[root];
+		if (root_globalrank < 0){
+		    perror("wrong root globalrank");
 		}
+        int startSeq = comm_info->proc_seq[root_globalrank] + 1;
+		int first_msg_received = 0;
+		int buf_flag = 1;
+		int res;
+		size_t total_size;
+		int cur_index = 0;
+		int total_index = 0;
+		void* receive_next = request.data;
+        struct timeval start_time, end_time;
+        double elapsedTime;
+        gettimeofday(&start_time, NULL);
+
+		while (first_msg_received == 0 || cur_index < total_index) {
+		    // receiving status
+
+            gettimeofday(&end_time, NULL);
+            elapsedTime = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_usec - start_time.tv_usec) / 1000.0;
+            if (elapsedTime > SENDER_HEARTBEAT_MILLS){
+                // send out a NACK msg
+                send_msg->msg_type = NACK_MSG;
+                send_msg->sender = globalrank;
+                send_msg->receiver = comm_info->global_ranks;
+                send_msg->t_size = -1;
+                send_msg->index = cur_index;
+                send_msg->sequence = comm_info->proc_seq[root_globalrank] + 1;
+                send_msg->dt_size = -1;
+                nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
+                if (nbytes < 0) perror("sendto");
+
+                gettimeofday(&start_time, NULL);
+            }
+
+		    if (buf_flag == 1){
+                buf_flag = find_msg_in_buffer(comm_info, root_globalrank, comm_info->proc_seq[root_globalrank]);
+            }
+
+            if (buf_flag == -1){
+                res = receive_msg(fd, &addr);
+            }
+
+            if (res == -1){
+                continue;
+            }
+
+            res = preprocess_recv_msg(comm_info_index);
+            if (res == -1){
+                continue;
+            }
+
+            // the same communicator
+            if (recv_msg->msg_type == DT_MSG){
+                int sender = recv_msg->sender;
+                int seq = recv_msg->sequence;
+
+                // dt_msg from the same communicator
+                // check sender & sequence
+                if (sender == root_globalrank){
+                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
+                        // stale message, skip
+                        continue;
+                    } else if(seq == recv_msg_comm_info->proc_seq[sender] + 1) {
+                        // current message, process
+                        // TODO: process right message and buffer lookup
+                        if (first_msg_received == 0){
+                            first_msg_received = 1;
+                            total_size = recv_msg->t_size;
+                            total_index = ceil(total_size / (double)MAX_BCAST_SIZE);
+                        }
+
+                        memcpy(receive_next, recv_msg->data, recv_msg->dt_size);
+                        receive_next += recv_msg->dt_size;
+                        cur_index += 1;
+                        recv_msg_comm_info->proc_seq[sender] += 1;
+                        buf_flag = 1;
+                        gettimeofday(&start_time, NULL);
+                    } else {
+                        // future message, add to buffer
+                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                        if (recv_msg == -1){
+                            recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+                        }
+                    }
+                } else {
+                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
+                        // stale message, skip
+                        continue;
+                    } else {
+                        // future message, add to buffer
+                        recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                        if (recv_msg == -1){
+                            recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+                        }
+                    }
+                }
+            } else if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG) {
+                continue;
+            } else {
+                perror("wrong message");
+            }
+		}
+
+		// ack stage
+
 	}
     close(fd);
 
