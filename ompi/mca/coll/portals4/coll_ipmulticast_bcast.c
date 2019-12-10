@@ -169,6 +169,7 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
     comm_infos[idx].size = size;
     comm_infos[idx].initialized = 1;
     comm_infos[idx].msg_buffer = initQueue();
+    memset(comm_infos[idx].proc_seq, 0, sizeof(comm_infos[idx].proc_seq));
     for (int i = 0; i < NUM_PROCESS; i++){
         if(i < size){
             comm_infos[idx].global_ranks[i] = globalranks[i];
@@ -358,7 +359,7 @@ int preprocess_recv_msg(int comm_info_index){
             }else {
                 // future message, add to buffer
                 recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                if (recv_msg == -1){
+                if ((int)recv_msg == -1){
                     recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                 }
                 return -1;
@@ -436,7 +437,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     if (request.is_root) {
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
         int startSeq = comm_info->proc_seq[globalrank];
-        int endSeq = startSeq + ceil(request.data_size / (float)MAX_BCAST_SIZE) - 1;
+        int endSeq = startSeq + ((int)ceil(request.data_size / (float)MAX_BCAST_SIZE)) - 1;
 
 		// First send the size so that the receivers know how many messages to expect
 		// TODO: There are better ways to do this, no?
@@ -468,11 +469,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // send out a heartbeat
                 send_msg->msg_type = NACK_MSG;
                 send_msg->sender = globalrank;
-                send_msg->receiver = comm_info->global_ranks;
                 send_msg->t_size = -1;
                 send_msg->index = -1;
                 send_msg->sequence = startSeq;
                 send_msg->dt_size = -1;
+                memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
                 if (nbytes < 0) perror("sendto");
 
@@ -498,11 +499,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     // current bcast
                     send_msg->msg_type = DT_MSG;
                     send_msg->sender = globalrank;
-                    send_msg->receiver = comm_info->global_ranks;
                     send_msg->t_size = request.data_size;
                     send_msg->index = recv_msg->index;
                     send_msg->sequence = recv_msg->sequence;
                     send_msg->dt_size = MIN(request.data_size - send_msg->index * MAX_BCAST_SIZE, MAX_BCAST_SIZE);
+                    memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
                     memcpy(&(send_msg->data), request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
                     nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
@@ -539,7 +540,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 if (seq >= recv_msg_comm_info->proc_seq[sender]){
                     // future message, add to buffer
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                    if (recv_msg == -1){
+                    if ((int)recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
                 }
@@ -581,11 +582,12 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // send out a NACK msg
                 send_msg->msg_type = NACK_MSG;
                 send_msg->sender = globalrank;
-                send_msg->receiver = comm_info->global_ranks;
                 send_msg->t_size = -1;
                 send_msg->index = cur_index;
                 send_msg->sequence = comm_info->proc_seq[root_globalrank];
                 send_msg->dt_size = -1;
+
+                memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
                 if (nbytes < 0) perror("sendto");
 
@@ -623,7 +625,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                         if (first_msg_received == 0){
                             first_msg_received = 1;
                             total_size = recv_msg->t_size;
-                            total_index = ceil(total_size / (double)MAX_BCAST_SIZE);
+                            total_index = (int)ceil(total_size / (double)MAX_BCAST_SIZE);
                         }
 
                         memcpy(receive_next, recv_msg->data, recv_msg->dt_size);
@@ -635,7 +637,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     } else if (seq > recv_msg_comm_info->proc_seq[sender]) {
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if (recv_msg == -1){
+                        if ((int)recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
@@ -644,7 +646,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     if (seq >= recv_msg_comm_info->proc_seq[sender]){
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if (recv_msg == -1){
+                        if ((int)recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
@@ -678,7 +680,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if(seq >= comm_info->proc_seq[sender]){
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                    if (recv_msg == -1){
+                    if ((int)recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
                 }
@@ -688,11 +690,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     // receive a NACK msg from sender, send a end msg
                     send_msg->msg_type = END_MSG;
                     send_msg->sender = globalrank;
-                    send_msg->receiver = comm_info->global_ranks;
                     send_msg->t_size = -1;
                     send_msg->index = -1;
                     send_msg->sequence = startSeq;
                     send_msg->dt_size = -1;
+                    memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
                     nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
                     if (nbytes < 0) perror("sendto");
 
