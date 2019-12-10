@@ -141,7 +141,7 @@ int find_msg_in_buffer(comm_info_t* comm_info, int root_globalrank, int sequence
     moveToHead(buf);
     while(buf->cur != -1){
         msg = buf->cur->data;
-        if (msg->sequence == sequence and msg->sender == root_globalrank){
+        if (msg->sequence == sequence && msg->sender == root_globalrank){
             free(recv_msg);
             recv_msg = pop(buf, buf->cur);
             return 1;
@@ -149,7 +149,7 @@ int find_msg_in_buffer(comm_info_t* comm_info, int root_globalrank, int sequence
         moveToNext(buf);
         count++;
     }
-    if(count != queue->length){
+    if(count != buf->length){
         perror("buffer length error");
     }
     return -1;
@@ -178,7 +178,7 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
         }
     }
 
-    (*comm_info) = comm_infos[i];
+    (*comm_info) = &(comm_infos[idx]);
     return idx;
 }
 
@@ -201,13 +201,13 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
         if (comm_infos[i].size != size) continue;
 
         for(int j = 0; j < size; j++){
-            if (comm_infos[i][j] != globalranks[j]){
+            if (comm_infos[i].global_ranks[j] != globalranks[j]){
                 flag = 0;
                 break;
             }
         }
         if (flag == 1){
-            *comm_info = comm_infos[i];
+            *comm_info = &(comm_infos[i]);
             return 0;
         }
     }
@@ -225,16 +225,15 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
     for(int i = 0; i < MAX_COMM; i++){
         int flag = 1;
         if (comm_infos[i].initialized == 0) break;
-        if (comm_infos[i].size != size) continue;
 
         for(int j = 0; j < size; j++){
-            if (comm_infos[i][j] != globalranks[j]){
+            if (comm_infos[i].global_ranks[j] != globalranks[j]){
                 flag = 0;
                 break;
             }
         }
         if (flag == 1){
-            *comm_info = comm_infos[i];
+            *comm_info = &(comm_infos[i]);
             return 0;
         }
     }
@@ -258,14 +257,14 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
     ssize_t nbytes;
-    char* send_next = request.data;
+    char* send_next = request->data;
     int index = 0;
     int startSeq = comm_info->proc_seq[globalrank];
 
     msg->msg_type = DT_MSG;
     msg->sender = globalrank;
-    msg->receiver = comm_info->global_ranks;
     msg->t_size = size_remaining;
+    memcpy(msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
     // printf("Sent %zd for size\n", nbytes);
     while (size_remaining > 0) {
@@ -285,8 +284,8 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
             perror("sendto");
 
         // printf("Sent %zd\n", nbytes);
-        size_remaining -= msg->size;
-        send_next += msg->size;
+        size_remaining -= msg->dt_size;
+        send_next += msg->dt_size;
     }
     return 1;
 }
@@ -359,7 +358,7 @@ int preprocess_recv_msg(int comm_info_index){
             }else {
                 // future message, add to buffer
                 recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                if ((int)recv_msg == -1){
+                if (recv_msg == -1){
                     recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                 }
                 return -1;
@@ -368,7 +367,7 @@ int preprocess_recv_msg(int comm_info_index){
             perror("Wrong msg found, exit...");
         }
     }
-    return 1;
+    return recv_msg_comm_info_index;
 }
 
 double calElapseTime(struct timeval* start_time, struct timeval* end_time){
@@ -453,10 +452,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         double elapsedTime;
         gettimeofday(&start_time, NULL);
         for (int i = 0; i < NUM_PROCESS; i++){
-            if (comm_info->global_ranks[i] > -1 and i != globalrank) {
-                end_received_proc[i] = 0;
+            if (comm_info->global_ranks[i] > -1 && comm_info->global_ranks[i] != globalrank) {
+                end_received_proc[comm_info->global_ranks[i]] = 0;
             } else {
-                end_received_proc[i] = -1;
+                end_received_proc[comm_info->global_ranks[i]] = -1;
             }
         }
 
@@ -523,12 +522,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     continue;
                 }
 
-                for (int i = 0; i < NUM_PROCESS; i++){
-                    if (recv_msg_comm_info->global_ranks[i] == recv_msg->sender
-                        && end_received_proc[i] == 0) {
-                        end_received_proc[i] = 1;
-                        end_received += 1;
-                    }
+                if (end_received_proc[recv_msg->sender] == 0){
+                    end_received_proc[recv_msg->sender] = 1;
+                    end_received += 1;
+                } else if (end_received_proc[recv_msg->sender] == -1){
+                    perror("receiving wrong end_msg");
                 }
 
             }else if (recv_msg->msg_type == DT_MSG){
@@ -540,7 +538,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 if (seq >= recv_msg_comm_info->proc_seq[sender]){
                     // future message, add to buffer
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                    if ((int)recv_msg == -1){
+                    if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
                 }
@@ -637,7 +635,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     } else if (seq > recv_msg_comm_info->proc_seq[sender]) {
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if ((int)recv_msg == -1){
+                        if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
@@ -646,7 +644,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     if (seq >= recv_msg_comm_info->proc_seq[sender]){
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                        if ((int)recv_msg == -1){
+                        if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
@@ -680,7 +678,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if(seq >= comm_info->proc_seq[sender]){
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
-                    if ((int)recv_msg == -1){
+                    if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
                 }

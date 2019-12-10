@@ -30,7 +30,6 @@
 #define RECEIVING_METADATA_STATUS 1
 #define RECEIVING_DATA_STATUS 2
 
-#define MAX_MSG_SIZE (sizeof(_bcast_msg_t) + MAX_BCAST_SIZE)
 
 //typedef struct _start_msg_t {
 //    int msg_type;
@@ -82,6 +81,9 @@ typedef struct _bcast_msg_t {
     int index;
     char data[];
 } bcast_msg_t;
+
+#define MAX_MSG_SIZE (sizeof(bcast_msg_t) + MAX_BCAST_SIZE)
+
 
 typedef struct _comm_info_t {
     int proc_seq[NUM_PROCESS];
