@@ -542,7 +542,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 int seq = recv_msg->sequence;
                 if (seq >= comm_info->proc_seq[sender]){
                     // future message, add to buffer
-                    recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                    recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
