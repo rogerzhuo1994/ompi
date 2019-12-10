@@ -187,7 +187,11 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     ompi_comm_group((ompi_communicator_t*)comm, &thisgroup);
     ompi_comm_group((ompi_communicator_t*)ompi_mpi_comm_world_addr, &worldgroup);
     int size = ompi_group_size(thisgroup);
-    int* globalranks = malloc(size*sizeof(int));
+    int* globalranks = malloc(NUM_PROCESS*sizeof(int));
+    for (int i = 0; i < NUM_PROCESS; i++){
+        globalranks[i] = -1;
+    }
+
     int* localranks = malloc(size*sizeof(int));
     for (int i = 0; i < size; i++) {
         localranks[i] = i;
@@ -199,7 +203,7 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
         if (comm_infos[i].initialized == 0) break;
         if (comm_infos[i].size != size) continue;
 
-        for(int j = 0; j < size; j++){
+        for(int j = 0; j < NUM_PROCESS; j++){
             if (comm_infos[i].global_ranks[j] != globalranks[j]){
                 flag = 0;
                 break;
@@ -221,12 +225,19 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
 int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
     int* globalranks = msg->receiver;
 
+    int size = 0;
+    for (int i = 0; i < NUM_PROCESS; i++){
+        if (globalranks[i] != -1) {
+            size += 1;
+        }
+    }
+
     for(int i = 0; i < MAX_COMM; i++){
         int flag = 1;
         if (comm_infos[i].initialized == 0) break;
 
         for(int j = 0; j < NUM_PROCESS; j++){
-            if (comm_infos[i].global_ranks[j] != globalranks[j]){
+            if (comm_infos[i].global_ranks[j] != msg->receiver[j]){
                 flag = 0;
                 break;
             }
@@ -622,7 +633,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // dt_msg from the same communicator
                 // check sender & sequence
                 if (sender == root_globalrank){
-                    if(seq == recv_msg_comm_info->proc_seq[sender]) {
+                    if(seq == comm_info->proc_seq[sender]) {
                         // current message, process
                         // TODO: process right message and buffer lookup
                         if (first_msg_received == 0){
