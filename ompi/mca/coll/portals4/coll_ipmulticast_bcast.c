@@ -272,7 +272,7 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         msg->index = index;
         index += 1;
 
-        msg->sequence = comm_info->proc_seq[globalrank] + 1;
+        msg->sequence = comm_info->proc_seq[globalrank];
         comm_info->proc_seq[globalrank] += 1;
 
         dt_size = MIN(size_remaining, MAX_BCAST_SIZE);
@@ -352,7 +352,7 @@ int preprocess_recv_msg(int comm_info_index){
             // if stale message, skip, otherwise add to buffer
             int sender = recv_msg->sender;
             int seq = recv_msg->sequence;
-            if (seq <= recv_msg_comm_info->proc_seq[sender]){
+            if (seq < recv_msg_comm_info->proc_seq[sender]){
                 // stale message, skip
                 return -1;
             }else {
@@ -368,6 +368,10 @@ int preprocess_recv_msg(int comm_info_index){
         }
     }
     return 1;
+}
+
+double calElapseTime(struct timeval* start_time, struct timeval* end_time){
+    return ((end_time->tv_sec - start_time->tv_sec) * 1000 + (end_time->tv_usec - start_time->tv_usec) / 1000.0);
 }
 
 int ompi_coll_ipmulticast_bcast(void *buff, int count,
@@ -431,7 +435,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     ssize_t nbytes;
     if (request.is_root) {
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
-        int startSeq = comm_info->proc_seq[globalrank] + 1;
+        int startSeq = comm_info->proc_seq[globalrank];
         int endSeq = startSeq + ceil(request.data_size / (float)MAX_BCAST_SIZE) - 1;
 
 		// First send the size so that the receivers know how many messages to expect
@@ -532,10 +536,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // if is, skip, otherwise add to buffer
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
-                if (seq <= recv_msg_comm_info->proc_seq[sender]){
-                    // stale message, skip
-                    continue;
-                }else {
+                if (seq >= recv_msg_comm_info->proc_seq[sender]){
                     // future message, add to buffer
                     recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
@@ -559,7 +560,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		if (root_globalrank < 0){
 		    perror("wrong root globalrank");
 		}
-        int startSeq = comm_info->proc_seq[root_globalrank] + 1;
+        int startSeq = comm_info->proc_seq[root_globalrank];
 		int first_msg_received = 0;
 		int buf_flag = 1;
 		int res;
@@ -583,7 +584,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 send_msg->receiver = comm_info->global_ranks;
                 send_msg->t_size = -1;
                 send_msg->index = cur_index;
-                send_msg->sequence = comm_info->proc_seq[root_globalrank] + 1;
+                send_msg->sequence = comm_info->proc_seq[root_globalrank];
                 send_msg->dt_size = -1;
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
                 if (nbytes < 0) perror("sendto");
@@ -616,10 +617,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // dt_msg from the same communicator
                 // check sender & sequence
                 if (sender == root_globalrank){
-                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
-                        // stale message, skip
-                        continue;
-                    } else if(seq == recv_msg_comm_info->proc_seq[sender] + 1) {
+                    if(seq == recv_msg_comm_info->proc_seq[sender]) {
                         // current message, process
                         // TODO: process right message and buffer lookup
                         if (first_msg_received == 0){
@@ -634,24 +632,23 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                         recv_msg_comm_info->proc_seq[sender] += 1;
                         buf_flag = 1;
                         gettimeofday(&start_time, NULL);
-                    } else {
+                    } else if (seq > recv_msg_comm_info->proc_seq[sender]) {
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
+
                 } else {
-                    if (seq <= recv_msg_comm_info->proc_seq[sender]){
-                        // stale message, skip
-                        continue;
-                    } else {
+                    if (seq >= recv_msg_comm_info->proc_seq[sender]){
                         // future message, add to buffer
                         recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
                             recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                         }
                     }
+                    // do nothing for stale message
                 }
             } else if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG) {
                 continue;
@@ -661,6 +658,52 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		}
 
 		// ack stage
+        gettimeofday(&start_time, NULL);
+        gettimeofday(&end_time, NULL);
+		while (calElapseTime(&start_time, &end_time) < MSG_LIVE_TIME){
+            res = receive_msg(fd, &addr);
+            if (res == -1){
+                continue;
+            }
+
+            res = preprocess_recv_msg(comm_info_index);
+            if (res == -1){
+                continue;
+            }
+
+            // the same communicator
+            if (recv_msg->msg_type == DT_MSG){
+                int sender = recv_msg->sender;
+                int seq = recv_msg->sequence;
+
+                if(seq >= comm_info->proc_seq[sender]){
+                    recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
+                    if (recv_msg == -1){
+                        recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
+                    }
+                }
+
+            } else if (recv_msg->msg_type == NACK_MSG) {
+                if (recv_msg->sequence == startSeq) {
+                    // receive a NACK msg from sender, send a end msg
+                    send_msg->msg_type = END_MSG;
+                    send_msg->sender = globalrank;
+                    send_msg->receiver = comm_info->global_ranks;
+                    send_msg->t_size = -1;
+                    send_msg->index = -1;
+                    send_msg->sequence = startSeq;
+                    send_msg->dt_size = -1;
+                    nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
+                    if (nbytes < 0) perror("sendto");
+
+                    gettimeofday(&start_time, NULL);
+                }
+            } else if (recv_msg->msg_type == END_MSG) {
+              continue;
+            } else {
+                perror("wrong message");
+            }
+		}
 
 	}
     close(fd);
