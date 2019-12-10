@@ -28,14 +28,14 @@ static inline unsigned long nextrand() {
 	toreturn |= rand();
 	return toreturn;
 }
-static void fill(int seed, unsigned long* buffer) {
+static void fill(int seed, unsigned long* buffer, int message_size) {
 	srand(seed);
-	for (int i = 0; i < buffersize; i++)
+	for (int i = 0; i < message_size; i++)
 		buffer[i] = nextrand();
 }
-static void validate(int seed, unsigned long* buffer) {
+static void validate(int seed, unsigned long* buffer, int message_size) {
 	srand(seed);
-	for (int i = 0; i < buffersize; i++) {
+	for (int i = 0; i < message_size; i++) {
 		unsigned long expected = nextrand();
 		if (buffer[i] != expected) {
 			printf("Buffer data validation error. For seed %d, at position %d, buffer contained %lu but %lu was expected.\n", seed, i, buffer[i], expected);
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
 			stall();
 
 		if (subcomm_rank == root)
-			fill(i+100*communicator_num, buffer);
+			fill(i+100*communicator_num, buffer, message_size);
 		if (nrounds == 1)
 			start = MPI_Wtime(); // Don't include time to fill
 
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
 		if (nrounds == 1)
 			end = MPI_Wtime();
 		if (subcomm_rank != root)
-			validate(i+100*communicator_num, buffer);
+			validate(i+100*communicator_num, buffer, message_size);
 
 		bytes += message_size * sizeof(unsigned long);
 	}
