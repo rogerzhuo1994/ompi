@@ -306,6 +306,9 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         int fd,
         struct sockaddr_in* addr){
 
+    print_rank_info();
+    printf("Start sending bulk data...\n");
+
     size_t size_remaining = request->data_size;
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
@@ -314,25 +317,41 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     int index = 0;
     int startSeq = comm_info->proc_seq[globalrank];
 
+    print_rank_info();
+    printf("Bulk metadata: size %d, startSeq %d\n", size_remaining, startSeq);
+
     msg->msg_type = DT_MSG;
     msg->sender = globalrank;
     msg->t_size = size_remaining;
     memcpy(msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
+
+
     // printf("Sent %zd for size\n", nbytes);
     while (size_remaining > 0) {
         // TODO: UDP does not guarauntee ordering!!
         msg->index = index;
-        index += 1;
 
         msg->sequence = comm_info->proc_seq[globalrank];
-        comm_info->proc_seq[globalrank] += 1;
+
 
         dt_size = MIN(size_remaining, MAX_BCAST_SIZE);
         msg->dt_size = dt_size;
         memcpy(&(msg->data), send_next, dt_size);
 
+        print_rank_info();
+        print_msg(msg);
+        printf("\n");
+
+        index += 1;
+        comm_info->proc_seq[globalrank] += 1;
+
         nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t) + msg->dt_size, 0, (struct sockaddr*) addr, sizeof(*addr));
+
+        print_rank_info();
+        printf("Sent: %dth msg, nbytes: %d", msg->index, nbytes);
+        printf("\n");
+
         if (nbytes < 0 || nbytes != sizeof(bcast_msg_t) + msg->dt_size)
             perror("sendto");
 
@@ -476,7 +495,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     print_rank_info();
     printf("Comms got...");
     print_comm_info(comm_info);
-    perror("Stop!");
+    printf("\n");
 
     ompi_coll_ipmulticast_request_t request;
 
@@ -528,6 +547,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
     ssize_t nbytes;
     if (request.is_root) {
+
+        print_rank_info();
+        printf("Enter into root...\n");
+
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
         int startSeq = comm_info->proc_seq[globalrank];
         int endSeq = startSeq + ((int)ceil(request.data_size / (float)MAX_BCAST_SIZE)) - 1;
