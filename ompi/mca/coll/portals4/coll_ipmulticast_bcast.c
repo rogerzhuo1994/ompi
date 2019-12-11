@@ -831,14 +831,25 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // nack_msg from the same communicator
                 // check whether is current bcast
                 // if is current bcast, add 1
+                print_rank_info();
+                printf("END_MSG received...");
+                print_msg(recv_msg);
+
                 if (recv_msg->sequence != startSeq){
                     // probably not current bcast, skip
+                    print_rank_info();
+                    printf("END_MSG received, not correct seq, seq=%d, startSeq=%d...\n", recv_msg->sequence, startSeq);
                     continue;
                 }
 
                 if (end_received_proc[recv_msg->sender] == 0){
                     end_received_proc[recv_msg->sender] = 1;
                     end_received += 1;
+
+                    print_rank_info();
+                    printf("END_MSG received, updated, seq=%d, startSeq=%d...", recv_msg->sequence, startSeq);
+                    print_arr(end_received_proc);
+                    printf("\n");
                 } else if (end_received_proc[recv_msg->sender] == -1){
                     perror("receiving wrong end_msg");
                 }
@@ -847,6 +858,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // dt_msg from the same communicator
                 // check whether is stale message
                 // if is, skip, otherwise add to buffer
+                print_rank_info();
+                printf("DT_MSG received...");
+                print_msg(recv_msg);
+
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
                 if (seq >= comm_info->proc_seq[sender]){
