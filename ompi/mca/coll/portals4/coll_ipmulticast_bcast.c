@@ -16,6 +16,8 @@
 #include "coll_ipmulticast_bcast.h"
 #include "coll_portals4.h"
 
+#include "coll_rudp_bcast.h"
+#include "util.h"
 
 #define IP_MULTICAST_PORT 12441
 #define IP_MULTICAST_ADDR "224.0.0.7"
