@@ -385,6 +385,7 @@ double calElapseTime(struct timeval* start_time, struct timeval* end_time){
     return ((end_time->tv_sec - start_time->tv_sec) * 1000 + (end_time->tv_usec - start_time->tv_usec) / 1000.0);
 }
 
+
 void print_arr(int arr[], int size){
     printf("arr ");
     for (int i = 0; i < size; i++){
