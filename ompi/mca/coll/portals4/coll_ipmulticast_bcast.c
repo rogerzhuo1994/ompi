@@ -848,7 +848,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                     print_rank_info();
                     printf("END_MSG received, updated, seq=%d, startSeq=%d...", recv_msg->sequence, startSeq);
-                    print_arr(end_received_proc);
+                    print_arr(end_received_proc, NUM_PROCESS);
                     printf("\n");
                 } else if (end_received_proc[recv_msg->sender] == -1){
                     perror("receiving wrong end_msg");
