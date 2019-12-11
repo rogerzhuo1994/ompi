@@ -31,6 +31,37 @@
 #define RECEIVING_METADATA_STATUS 1
 #define RECEIVING_DATA_STATUS 2
 
+typedef struct _QueueNode{
+    void* data;
+    struct _QueueNode* next;
+    struct _QueueNode* prev;
+}QueueNode;
+
+typedef struct _Queue{
+    QueueNode* head;
+    QueueNode* tail;
+    QueueNode* cur;
+    unsigned long length;
+}Queue;
+
+void* deQueue(Queue* queue);
+
+void* enQueue(Queue* queue, void* data);
+
+Queue* initQueue();
+
+void freeQueue(Queue* queue);
+
+void* pop(Queue* queue, QueueNode* curNode);
+
+void moveToHead(Queue* queue);
+
+int moveToNext(Queue* queue);
+
+void traverseQueue(Queue* queue);
+
+
+
 typedef struct _bcast_msg_t {
     int msg_type;
     int sender;
@@ -67,33 +98,6 @@ void print_rank_info();
 void print_msg(bcast_msg_t* msg);
 
 
-typedef struct _QueueNode{
-    void* data;
-    struct _QueueNode* next;
-    struct _QueueNode* prev;
-}QueueNode;
 
-typedef struct _Queue{
-    QueueNode* head;
-    QueueNode* tail;
-    QueueNode* cur;
-    unsigned long length;
-}Queue;
-
-void* deQueue(Queue* queue);
-
-void* enQueue(Queue* queue, void* data);
-
-Queue* initQueue();
-
-void freeQueue(Queue* queue);
-
-void* pop(Queue* queue, QueueNode* curNode);
-
-void moveToHead(Queue* queue);
-
-int moveToNext(Queue* queue);
-
-void traverseQueue(Queue* queue);
 
 #endif //OMPI_COLL_R_BCAST_H
