@@ -179,7 +179,7 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
 
     comm_infos[idx].size = size;
     comm_infos[idx].initialized = 1;
-    comm_infos[idx].msg_buffer = initQueue();
+    // comm_infos[idx].msg_buffer = initQueue();
     memset(comm_infos[idx].proc_seq, 0, sizeof(comm_infos[idx].proc_seq));
     for (int i = 0; i < NUM_PROCESS; i++){
         if(i < size){
@@ -798,7 +798,6 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 perror("wrong message");
             }
 		}
-
 	}
     close(fd);
 
