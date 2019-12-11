@@ -9,12 +9,14 @@
 static void fill(int seed, int* buffer) {
 	srand(seed);
 	for (int i = 0; i < BUFFERSIZE; i++)
-		buffer[i] = rand();
+//		buffer[i] = rand();
+		buffer[i] = i;
 }
 static void validate(int seed, int* buffer) {
 	srand(seed);
 	for (int i = 0; i < BUFFERSIZE; i++) {
-		int expected = rand();
+//		int expected = rand();
+		int expected = i;
 		if (buffer[i] != expected) {
 			printf("Buffer data validation error. For seed %d, at position %d, buffer contained %d but %d was expected.\n", seed, i, buffer[i], expected);
 			abort();
