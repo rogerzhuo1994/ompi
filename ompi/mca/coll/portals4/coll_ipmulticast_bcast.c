@@ -1033,11 +1033,17 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         gettimeofday(&end_time, NULL);
 		while (calElapseTime(&start_time, &end_time) < MSG_LIVE_TIME){
             res = receive_msg(fd, &addr);
+
+            gettimeofday(&end_time, NULL);
+
             if (res == -1){
                 continue;
             }
 
             res = preprocess_recv_msg(comm_info_index);
+            print_rank_info();
+            printf("Acking stage: preprocessing res=%d", res);
+
             if (res == -1){
                 continue;
             }
@@ -1077,11 +1083,11 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		}
 	}
     close(fd);
-
-	print_rank_info();
-	printf("Jump out of received or send...\n");
-
 	post_bcast_data(&request);
+
+    print_rank_info();
+    printf("Jump out of received or send...\n");
+
     return (OMPI_SUCCESS);
 }
 

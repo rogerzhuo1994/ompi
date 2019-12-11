@@ -58,5 +58,8 @@ int main(int argc, char** argv) {
 		if (rank != root)
 			validate(i+100, buffer);
 	}
+
+	printf("Hello 1c. I'm rank %d of %d. I finished Bcast\n", rank, size);
+
 	MPI_Finalize();
 }
