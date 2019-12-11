@@ -558,7 +558,7 @@ int preprocess_recv_msg(int comm_info_index){
     int recv_msg_comm_info_index = find_msg_comm_info(&recv_msg_comm_info, recv_msg);
 
     print_rank_info();
-    printf("Comm_info got, idx = %d...\n", recv_msg_comm_info);
+    printf("Comm_info got, idx = %d...\n", recv_msg_comm_info_index);
     // whether the message is from the same communicator
     if (recv_msg_comm_info_index != comm_info_index){
 
@@ -733,6 +733,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         gettimeofday(&start_time, NULL);
 
         for (int i = 0; i < NUM_PROCESS; i++){
+            end_received_proc[i] = -1;
             if (comm_info->global_ranks[i] > -1 && comm_info->global_ranks[i] != globalrank) {
                 end_received_proc[comm_info->global_ranks[i]] = 0;
             } else {
@@ -847,7 +848,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     end_received += 1;
 
                     print_rank_info();
-                    printf("END_MSG received, updated, seq=%d, startSeq=%d...", recv_msg->sequence, startSeq);
+                    printf("END_MSG received, updated, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
                     print_arr(end_received_proc, NUM_PROCESS);
                     printf("\n");
                 } else if (end_received_proc[recv_msg->sender] == -1){
