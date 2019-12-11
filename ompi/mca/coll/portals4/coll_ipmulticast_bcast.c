@@ -21,7 +21,6 @@
 #include "coll_portals4.h"
 
 #include "coll_rudp_bcast.h"
-#include "bcast_util.h"
 
 static int rank;
 static int globalrank;
@@ -497,7 +496,7 @@ int receive_msg(int fd,
         perror("Receiving invalid msg header");
     }
 
-    nbytes = recvfrom(fd, recv_msg+ sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
+    nbytes = recvfrom(fd, ((void*)recv_msg)+sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
     if(nbytes != ((bcast_msg_t*)recv_msg)->dt_size){
         perror("Receiving invalid msg data");
     }
