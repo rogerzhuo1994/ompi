@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 	}
 	printf("Hello 1c. I'm rank %d of %d.\n", rank, size);
 
-	for (int i = 0; i < 1024; i++) {
+	for (int i = 0; i < 1; i++) {
 		int root = i % 2;
 		if (rank == root)
 			fill(i+100, buffer);
