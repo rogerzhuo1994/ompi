@@ -23,9 +23,9 @@
 #include "coll_rudp_bcast.h"
 #include "util.h"
 
-int rank;
-int globalrank;
-int initialized = 0;
+static int rank;
+static int globalrank;
+static int initialized;
 
 typedef struct {
 	bool is_root;
