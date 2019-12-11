@@ -96,7 +96,4 @@ void print_rank_info();
 
 void print_msg(bcast_msg_t* msg);
 
-
-
-
 #endif //OMPI_COLL_R_BCAST_H

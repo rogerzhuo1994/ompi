@@ -388,6 +388,10 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
 }
 
 int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
+
+    print_rank_info();
+    printf("Finding comm_info for msg...\n");
+
     int* globalranks = msg->receiver;
 
     int size = 0;
@@ -409,9 +413,17 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
         }
         if (flag == 1){
             *comm_info = &(comm_infos[i]);
+
+            print_rank_info();
+            printf("Comm_info found...");
+            print_comm_info(*comm_info);
+
             return 0;
         }
     }
+
+    print_rank_info();
+    printf("Comm_info not found...\n");
 
     int initialized = initialize_comm_info(comm_info, size, globalranks);
     if (initialized == -1){
@@ -514,7 +526,14 @@ int receive_msg(int fd,
 int preprocess_recv_msg(int comm_info_index){
     // whether it's from myself
     // if from myself, skip
+
+    print_rank_info();
+    printf("Preprocess msg: ");
+    print_msg(recv_msg);
+
     if (recv_msg->sender == globalrank){
+        print_rank_info();
+        printf("Sender is from myself, skip\n");
         return -1;
     }
 
@@ -528,6 +547,8 @@ int preprocess_recv_msg(int comm_info_index){
         }
     }
     if (flag == -1){
+        print_rank_info();
+        printf("I'm not the receiver, skip\n");
         return -1;
     }
 
@@ -536,8 +557,11 @@ int preprocess_recv_msg(int comm_info_index){
     comm_info_t* recv_msg_comm_info;
     int recv_msg_comm_info_index = find_msg_comm_info(&recv_msg_comm_info, recv_msg);
 
+    print_rank_info();
+    printf("Comm_info got, idx = %d...\n", recv_msg_comm_info);
     // whether the message is from the same communicator
     if (recv_msg_comm_info_index != comm_info_index){
+
         // not the same communicator
         if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG){
             // nack_msg from other communicator, probably stale message or early message
@@ -546,6 +570,10 @@ int preprocess_recv_msg(int comm_info_index){
 
             // end_msg from other communicator,
             // when I'm the root, this end_msg is definitely not for me, skip
+
+            print_rank_info();
+            printf("Not current comm_info and non-dt_msg, skip, current = %d...\n", comm_info_index);
+
             return -1;
 
         }else if (recv_msg->msg_type == DT_MSG){
@@ -555,9 +583,15 @@ int preprocess_recv_msg(int comm_info_index){
             int seq = recv_msg->sequence;
             if (seq < recv_msg_comm_info->proc_seq[sender]){
                 // stale message, skip
+                print_rank_info();
+                printf("Not current comm_info and stale dt_msg, skip, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
                 return -1;
             }else {
                 // future message, add to buffer
+
+                print_rank_info();
+                printf("Not current comm_info and future dt_msg, buffer, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
+
                 recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                 if (recv_msg == -1){
                     recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
@@ -697,6 +731,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct timeval start_time, end_time;
         double elapsedTime;
         gettimeofday(&start_time, NULL);
+
         for (int i = 0; i < NUM_PROCESS; i++){
             if (comm_info->global_ranks[i] > -1 && comm_info->global_ranks[i] != globalrank) {
                 end_received_proc[comm_info->global_ranks[i]] = 0;
@@ -704,6 +739,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 end_received_proc[comm_info->global_ranks[i]] = -1;
             }
         }
+        print_rank_info();
+        printf("Start receiving response from receivers, startSeq = %d, receive_num = %d, receive_arr ", startSeq, end_to_received);
+        print_arr(end_received_proc, NUM_PROCESS);
+        printf("\n");
 
         while (end_received < end_to_received) {
             int res = receive_msg(fd, &addr);
@@ -719,27 +758,48 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 send_msg->sequence = startSeq;
                 send_msg->dt_size = -1;
                 memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
+
+                print_rank_info();
+                printf("Timeout and sendout a heartbeat, startSeq = %d, received_num = %d, receive_arr ", startSeq, end_received);
+                print_arr(end_received_proc, NUM_PROCESS);
+                printf("\n");
+
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
-                if (nbytes < 0) perror("sendto");
+
+                print_rank_info();
+                printf("Sent a heartbeat, ");
+                print_msg(send_msg);
+
+                if (nbytes < 0) perror("Sending heartbeat failure...");
 
                 gettimeofday(&start_time, NULL);
             }
 
             if (res == -1){
+                print_rank_info();
+                printf("A recv_msg is timeout...\n");
                 continue;
             }
 
-
             res = preprocess_recv_msg(comm_info_index);
+            print_rank_info();
+            printf("preprocessing ends, comm_id = %d...\n", res);
             if (res == -1){
                 continue;
             }
+
+            print_rank_info();
+            printf("msg for current comm_info, %d...\n", comm_info_index);
 
             // the same communicator
             if (recv_msg->msg_type == NACK_MSG){
                 // nack_msg from the same communicator
                 // check whether is current bcast
                 // if is current bcast, retransmit the message
+
+                print_rank_info();
+                printf("NACK_MSG received, seq=%d, startSqe=%d, endSeq=%d....\n", recv_msg->sequence, startSeq, endSeq);
+
                 if (recv_msg->sequence >= startSeq && recv_msg->sequence <= endSeq){
                     // current bcast
                     send_msg->msg_type = DT_MSG;
@@ -753,10 +813,18 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     memcpy(send_msg->data, request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
                     nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
 
+                    print_rank_info();
+                    printf("NACK_MSG: inside seq, resend message, bytes = %d...", nbytes);
+                    print_msg(send_msg);
+                    print_arr(send_msg->data, 20);
+                    printf("\n");
+
                     if (nbytes < 0) perror("sendto");
 
                 } else{
                     // not current bcast, skip
+                    print_rank_info();
+                    printf("NACK_MSG: outside seq, skip\n");
                     continue;
                 }
             }else if (recv_msg->msg_type == END_MSG){
