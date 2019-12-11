@@ -385,6 +385,31 @@ double calElapseTime(struct timeval* start_time, struct timeval* end_time){
     return ((end_time->tv_sec - start_time->tv_sec) * 1000 + (end_time->tv_usec - start_time->tv_usec) / 1000.0);
 }
 
+void print_comm_info(comm_info_t *comm_info){
+    printf("size %d, initialized %d", comm_info->size, comm_info->initialized);
+    print_arr(comm_info->proc_seq, NUM_PROCESS);
+    print_arr(comm_info->global_ranks, NUM_PROCESS);
+    printf("\n");
+}
+
+void print_rank_info(){
+    printf("Rank %d, global %d, ", rank, globalrank);
+}
+
+void print_msg(bcast_msg_t* msg){
+    printf("type %d, sender %d, sequence %d, t_size %d, dt_size %d, index %d, ",
+            msg->msg_type, msg->sender, msg->sequence, msg->t_size, msg->dt_size, msg->index);
+    print_arr(msg->receiver, NUM_PROCESS);
+    printf("\n");
+}
+
+void print_arr(int arr[], int size){
+    printf("arr ")
+    for (int i = 0; i < size; i++){
+        printf("%d ", arr[i]);
+    }
+}
+
 int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct ompi_datatype_t *datatype, int root,
         struct ompi_communicator_t *comm,mca_coll_base_module_t *module) {

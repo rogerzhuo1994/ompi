@@ -31,47 +31,6 @@
 #define RECEIVING_METADATA_STATUS 1
 #define RECEIVING_DATA_STATUS 2
 
-
-//typedef struct _start_msg_t {
-//    int msg_type;
-//    int comm_id;
-//    int sender;
-//    int sequence;
-//    size_t size;
-//} start_msg_t;
-//
-//typedef struct _dt_msg_t {
-//    int msg_type;
-//    int comm_id;
-//    int sender;
-//    long sequence;
-//    int size;
-//    int index;
-//    char data[];
-//} dt_msg_t;
-//
-//typedef struct _nack_msg_t {
-//    int msg_type;
-//    int comm_id;
-//    int sender;
-//    int receiver;
-//    long nack_sequence;
-//} nack_msg_t;
-//
-//typedef struct _end_msg_t {
-//    int msg_type;
-//    int comm_id;
-//    int sender;
-//    long sequence;
-//    int receiver;
-//} end_msg_t;
-//
-//typedef struct _msg_header_t {
-//    int msg_type;
-//    int comm_id;
-//    int sender;
-//} msg_header_t;
-
 typedef struct _bcast_msg_t {
     int msg_type;
     int sender;
