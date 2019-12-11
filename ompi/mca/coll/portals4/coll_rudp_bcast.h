@@ -94,9 +94,9 @@ typedef struct _comm_info_t {
     Queue* msg_buffer;
 } comm_info_t;
 
-comm_info_t comm_infos[MAX_COMM];
-
-bcast_msg_t* recv_msg;
-bcast_msg_t* send_msg;
+//comm_info_t comm_infos[MAX_COMM];
+//
+//bcast_msg_t* recv_msg;
+//bcast_msg_t* send_msg;
 
 #endif //OMPI_COLL_R_BCAST_H

@@ -23,6 +23,10 @@
 #define IP_MULTICAST_ADDR "224.0.0.7"
 #define MAX_BCAST_SIZE 512
 
+comm_info_t comm_infos[MAX_COMM];
+
+bcast_msg_t* recv_msg;
+bcast_msg_t* send_msg;
 
 typedef struct {
     bool is_root;
