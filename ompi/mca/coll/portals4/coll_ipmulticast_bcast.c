@@ -197,7 +197,7 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     // get the global information of current comm to find them
 
     print_rank_info();
-    printf("Finding comm_info...\n")
+    printf("Finding comm_info...\n");
 
     ompi_group_t *thisgroup, *worldgroup;
     ompi_comm_group((ompi_communicator_t*)comm, &thisgroup);
