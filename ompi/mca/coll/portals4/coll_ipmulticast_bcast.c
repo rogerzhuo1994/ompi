@@ -504,7 +504,7 @@ int receive_msg(int fd,
         return 0;
     }
 
-    nbytes = recvfrom(fd, ((void*)recv_msg)+sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
+    nbytes = recvfrom(fd, recv_msg->data, recv_msg->dt_size, 0, (struct sockaddr *) addr, &addrlen);
 
     print_rank_info();
     printf(" receive msg data: nbytes = %d\n", nbytes);
@@ -759,7 +759,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     send_msg->dt_size = MIN(request.data_size - send_msg->index * MAX_BCAST_SIZE, MAX_BCAST_SIZE);
                     memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
-                    memcpy(&(send_msg->data), request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
+                    memcpy(send_msg->data, request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
                     nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
 
                     if (nbytes < 0) perror("sendto");
