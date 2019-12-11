@@ -211,7 +211,7 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     print_rank_info();
     printf("Global ranks created...");
     print_arr(globalranks, NUM_PROCESS);
-    print("\n");
+    printf("\n");
 
     int* localranks = malloc(size*sizeof(int));
     for (int i = 0; i < size; i++) {
@@ -222,7 +222,7 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     print_rank_info();
     printf("Global ranks translated...");
     print_arr(globalranks, NUM_PROCESS);
-    print("\n");
+    printf("\n");
 
     print_rank_info();
     printf("Matching comms...\n");
