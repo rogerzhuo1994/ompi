@@ -58,4 +58,12 @@ static comm_info_t comm_infos[MAX_COMM];
 static bcast_msg_t* recv_msg;
 static bcast_msg_t* send_msg;
 
+void print_arr(int arr[], int size);
+
+void print_comm_info(comm_info_t *comm_info);
+
+void print_rank_info();
+
+void print_msg(bcast_msg_t* msg);
+
 #endif //OMPI_COLL_R_BCAST_H

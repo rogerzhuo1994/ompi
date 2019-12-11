@@ -155,13 +155,25 @@ int find_msg_in_buffer(comm_info_t* comm_info, int root_globalrank, int sequence
 }
 
 int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
+    print_rank_info();
+    printf("Comm not found! Finding new comm location.\n");
+
     int idx = -1;
     for(int i = 0; i < MAX_COMM; i++){
+
+        print_rank_info();
+        printf("%dth comm, ", i);
+        print_comm_info(&(comm_infos[i]));
+        printf("\n");
+
         if (comm_infos[i].initialized == 0) {
             idx = i;
             break;
         }
     }
+
+    print_rank_info();
+    printf("Location found: %d.\n", idx);
 
     if (idx == -1) return -1;
 
@@ -183,6 +195,10 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
 
 int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     // get the global information of current comm to find them
+
+    print_rank_info();
+    printf("Finding comm_info...\n")
+
     ompi_group_t *thisgroup, *worldgroup;
     ompi_comm_group((ompi_communicator_t*)comm, &thisgroup);
     ompi_comm_group((ompi_communicator_t*)ompi_mpi_comm_world_addr, &worldgroup);
@@ -192,13 +208,31 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
         globalranks[i] = -1;
     }
 
+    print_rank_info();
+    printf("Global ranks created...");
+    print_arr(globalranks, NUM_PROCESS);
+    print("\n");
+
     int* localranks = malloc(size*sizeof(int));
     for (int i = 0; i < size; i++) {
         localranks[i] = i;
     }
     ompi_group_translate_ranks(thisgroup, size, localranks, worldgroup, globalranks);
 
+    print_rank_info();
+    printf("Global ranks translated...");
+    print_arr(globalranks, NUM_PROCESS);
+    print("\n");
+
+    print_rank_info();
+    printf("Matching comms...\n");
+
     for(int i = 0; i < MAX_COMM; i++){
+        print_rank_info();
+        printf("%dth comm, ", i);
+        print_comm_info(&(comm_infos[i]));
+        printf("\n");
+
         int flag = 1;
         if (comm_infos[i].initialized == 0) break;
         if (comm_infos[i].size != size) continue;
@@ -210,12 +244,21 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
             }
         }
         if (flag == 1){
+            print_rank_info();
+            printf("Comm found! %dth comm, ", i);
+            print_comm_info(&(comm_infos[i]));
+            printf("\n");
+
             *comm_info = &(comm_infos[i]);
             return 0;
         }
     }
 
     int initialized = initialize_comm_info(comm_info, size, globalranks);
+
+    print_rank_info();
+    printf("New comm created, idx = %d\n", initialized);
+
     if (initialized == -1){
         perror("Communicator array is full, cannot use new communicator...");
     }
@@ -417,6 +460,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     printf("Calling custom bcast\n");
 
     if (initialized == 0){
+        print_rank_info();
+        printf("Initialize: allocating recv_msg & send_msg\n");
         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
         send_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
         initialized = 1;
@@ -424,8 +469,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
     comm_info_t* comm_info;
     int comm_info_index = find_comm_info(&comm_info, comm);
+
     rank = ompi_comm_rank(comm);
     globalrank = comm_info->global_ranks[rank];
+
+    print_rank_info();
+    printf("Comms got...");
+    print_comm_info(comm_info);
 
     ompi_coll_ipmulticast_request_t request;
 
