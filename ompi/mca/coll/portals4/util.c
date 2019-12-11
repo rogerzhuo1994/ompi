@@ -3,8 +3,8 @@
 //
 
 #include <stdlib.h>
-#include "ompi/mca/coll/portals4/coll_rudp_bcast.h"
-#include "ompi/mca/coll/portals4/util.h"
+#include "coll_rudp_bcast.h"
+#include "util.h"
 
 void* deQueue(Queue* queue){
     // TracePrintf(0, "queue: addr %d\n", queue);
