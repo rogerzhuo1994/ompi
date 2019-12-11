@@ -496,7 +496,16 @@ int receive_msg(int fd,
         perror("Receiving invalid msg header");
     }
 
+    print_rank_info();
+    printf(" receive a msg header: ");
+    print_msg(recv_msg);
+    printf("\n");
+
     nbytes = recvfrom(fd, ((void*)recv_msg)+sizeof(bcast_msg_t), ((bcast_msg_t*)recv_msg)->dt_size, 0, (struct sockaddr *) addr, &addrlen);
+
+    print_rank_info();
+    printf(" receive msg data: nbytes = %d\n", nbytes);
+
     if(nbytes != ((bcast_msg_t*)recv_msg)->dt_size){
         perror("Receiving invalid msg data");
     }
