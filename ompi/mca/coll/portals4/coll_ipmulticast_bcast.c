@@ -879,6 +879,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 perror("Wrong msg found, exit...");
             }
 
+            print_rank_info();
+            printf("Sender: startSeq=%d, end_received=%d, end_to_recv=%d... \n", startSeq, end_received, end_to_received);
         }
         //-------------------EDITED BY ROGER ENDS-------------------------
 
@@ -1075,6 +1077,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		}
 	}
     close(fd);
+
+	print_rank_info();
+	printf("Jump out of received or send...\n")
 
 	post_bcast_data(&request);
     return (OMPI_SUCCESS);
