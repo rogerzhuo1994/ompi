@@ -488,33 +488,24 @@ int receive_msg(int fd,
                 struct sockaddr_in* addr){
     ssize_t nbytes;
     int addrlen = sizeof(*addr);
-    nbytes = recvfrom(fd, recv_msg, sizeof(bcast_msg_t), 0, (struct sockaddr *) addr, &addrlen);
+    nbytes = recvfrom(fd, recv_msg, MAX_MSG_SIZE, 0, (struct sockaddr *) addr, &addrlen);
     if(nbytes < 0){
       // timeout return -1
       return -1;
-    } else if(nbytes != sizeof(bcast_msg_t)){
-        perror("Receiving invalid msg header");
     }
 
     print_rank_info();
-    printf(" receive a msg header: ");
+    printf(" receive a msg data: nbytes = %d, ", nbytes);
     print_msg(recv_msg);
-
-    if (recv_msg->msg_type != DT_MSG){
-        return 0;
-    }
-
-    nbytes = recvfrom(fd, recv_msg->data, recv_msg->dt_size, 0, (struct sockaddr *) addr, &addrlen);
-
-    print_rank_info();
-    printf(" receive msg data: nbytes = %d\n", nbytes);
-    print_rank_info();
-    printf(" received data: \n");
+    printf(", received data: ");
     print_arr(recv_msg->data, 20);
     printf("\n");
 
-    if(nbytes != ((bcast_msg_t*)recv_msg)->dt_size){
-        perror("Receiving invalid msg data");
+    if (recv_msg->msg_type == DT_MSG && nbytes != sizeof(bcast_msg_t) + recv_msg->dt_size){
+        perror("Received invalid dt_msg...");
+    }
+    if (recv_msg->msg_type != DT_MSG && nbytes != sizeof(bcast_msg_t)){
+        perror("Received invalid non-dt_msg...");
     }
 
     return 0;
