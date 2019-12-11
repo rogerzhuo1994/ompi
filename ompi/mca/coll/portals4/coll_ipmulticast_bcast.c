@@ -1079,7 +1079,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     close(fd);
 
 	print_rank_info();
-	printf("Jump out of received or send...\n")
+	printf("Jump out of received or send...\n");
 
 	post_bcast_data(&request);
     return (OMPI_SUCCESS);
