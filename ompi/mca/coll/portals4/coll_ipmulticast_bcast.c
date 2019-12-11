@@ -1088,6 +1088,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     print_rank_info();
     printf("Jump out of received or send...\n");
 
+    if (rank != root){
+        for (int i = 0; i < 1000; i++){
+            print_rank_info();
+            printf(" %d", (request.data)[i]);
+        }
+    }
+
     return (OMPI_SUCCESS);
 }
 
