@@ -476,6 +476,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     print_rank_info();
     printf("Comms got...");
     print_comm_info(comm_info);
+    perror("Stop!");
 
     ompi_coll_ipmulticast_request_t request;
 
