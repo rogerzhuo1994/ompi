@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include "coll_rudp_bcast.h"
-#include "util.h"
+#include "bcast_util.h"
 
 void* deQueue(Queue* queue){
     // TracePrintf(0, "queue: addr %d\n", queue);
