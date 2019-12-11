@@ -1089,9 +1089,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     printf("Jump out of received or send...\n");
 
     if (rank != root){
+        int *data = (int *)request.data;
         print_rank_info();
         for (int i = 0; i < 1000; i++){
-            printf(" %d", (request.data)[i]);
+            printf(" %d", data[i]);
         }
     }
 
