@@ -866,6 +866,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 int seq = recv_msg->sequence;
                 if (seq >= comm_info->proc_seq[sender]){
                     // future message, add to buffer
+
+                    print_rank_info();
+                    printf("DT_MSG added to buffer...\n");
                     recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
@@ -900,6 +903,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         double elapsedTime;
         gettimeofday(&start_time, NULL);
 
+        print_rank_info();
+        printf("Start receiving data as receiver...\n");
+
 		while (first_msg_received == 0 || cur_index < total_index) {
 		    // receiving status
 
@@ -916,7 +922,12 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
+
                 if (nbytes < 0) perror("sendto");
+
+                print_rank_info();
+                printf("Time for receiving elapsed, sending a NACK msg, nbytes=%d...", nbytes);
+                print_msg(send_msg);
 
                 gettimeofday(&start_time, NULL);
             }
@@ -924,6 +935,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		    if (buf_flag == 1){
                 buf_flag = find_msg_in_buffer(comm_info, root_globalrank, comm_info->proc_seq[root_globalrank]);
             }
+
+            print_rank_info();
+            printf("I gonna look the buffer first, buf_flag = %d...\n", buf_flag);
 
             if (buf_flag == -1){
                 res = receive_msg(fd, &addr);
@@ -933,6 +947,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 continue;
             }
 
+            print_rank_info();
+            printf("MSG_received or found...");
+            print_msg(recv_msg);
+
             res = preprocess_recv_msg(comm_info_index);
             if (res == -1){
                 continue;
@@ -940,13 +958,24 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
             // the same communicator
             if (recv_msg->msg_type == DT_MSG){
+
+                print_rank_info();
+                printf("DT_MSG && in the same communicator...\n");
+
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
 
                 // dt_msg from the same communicator
                 // check sender & sequence
                 if (sender == root_globalrank){
+                    print_rank_info();
+                    printf("massage is from the current sender\n");
+
                     if(seq == comm_info->proc_seq[sender]) {
+
+                        print_rank_info();
+                        printf("receive a current msg\n");
+
                         // current message, process
                         // TODO: process right message and buffer lookup
                         if (first_msg_received == 0){
@@ -962,6 +991,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                         buf_flag = 1;
                         gettimeofday(&start_time, NULL);
                     } else if (seq > comm_info->proc_seq[sender]) {
+                        print_rank_info();
+                        printf("receive a future msg\n");
+
                         // future message, add to buffer
                         recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
@@ -970,7 +1002,14 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     }
 
                 } else {
+                    print_rank_info();
+                    printf("massage is from the current sender\n");
+
                     if (seq >= comm_info->proc_seq[sender]){
+
+                        print_rank_info();
+                        printf("add to buffer\n");
+
                         // future message, add to buffer
                         recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                         if (recv_msg == -1){
