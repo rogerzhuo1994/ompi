@@ -8,7 +8,7 @@
 
 
 #define HUGEBUFFERSIZE (10*1024/8*1024*1024) // 10 GB
-#define LARGEBUFFERSIZE (100*100)  // approx 8 MB
+#define LARGEBUFFERSIZE (1000*1000)  // approx 8 MB
 #define SMALLBUFFERSIZE 25 // approx 200 B
 
 #define RUNTIME 1.0 // seconds
@@ -127,7 +127,6 @@ int main(int argc, char** argv) {
 		nrounds = 1;
 	if (rank == 0)
 		printf("Running %d rounds\n", nrounds);
-	nrounds = 10;
 
 	MPI_Comm bcast_comm;
 	if (nsubcomm == 1)
