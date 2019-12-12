@@ -863,6 +863,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     }
                 }
             }else {
+                print_rank_info();
+                print_msg(recv_msg);
                 perror("Wrong msg found, exit...");
             }
 
