@@ -61,6 +61,6 @@ int main(int argc, char** argv) {
 
 	printf("Hello 1c. I'm rank %d of %d. I finished Bcast\n", rank, size);
 
-	
+
 	MPI_Finalize();
 }

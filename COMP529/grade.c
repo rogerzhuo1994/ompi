@@ -127,6 +127,7 @@ int main(int argc, char** argv) {
 		nrounds = 1;
 	if (rank == 0)
 		printf("Running %d rounds\n", nrounds);
+	nrounds = 10;
 
 	MPI_Comm bcast_comm;
 	if (nsubcomm == 1)
