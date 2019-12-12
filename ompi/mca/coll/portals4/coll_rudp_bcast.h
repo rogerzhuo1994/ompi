@@ -18,7 +18,7 @@
 #define NUM_PROCESS 4
 #define MAX_COMM    4
 
-#define MSG_LIVE_TIME 128
+#define MSG_LIVE_TIME 64
 
 #define BUFFER_SIZE 256
 
