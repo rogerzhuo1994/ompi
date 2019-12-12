@@ -376,7 +376,7 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
 
     print_rank_info();
     printf(" [find_comm_info] New comm created, idx = %d, ", initialized);
-    print_comm_info(comm_infos[initialized]);
+    print_comm_info(&comm_infos[initialized]);
 
     if (initialized == -1){
         perror("Communicator array is full, cannot use new communicator...");
@@ -426,7 +426,7 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
 
     print_rank_info();
     printf(" [find_msg_comm_info] New comm created, idx = %d, ", initialized);
-    print_comm_info(comm_infos[initialized]);
+    print_comm_info(&comm_infos[initialized]);
 
     if (initialized == -1){
         perror("Communicator array is full, cannot use new communicator...");
