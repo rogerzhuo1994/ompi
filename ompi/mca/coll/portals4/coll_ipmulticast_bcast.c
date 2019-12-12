@@ -801,7 +801,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 if (recv_msg->sequence == startSeq && recv_msg->index < total_index && recv_msg->index >= 0){
                     // current bcast
 
-                    int end_index = MIN(total_index, recv_msg->index+MAX(MIN_BCAST_PACKETS, ceil(total_index*0.05)));
+                    int end_index = MIN(total_index, recv_msg->index+MAX(MIN_BCAST_PACKETS, ceil(total_index*0.01)));
 
                     bcast_bulk_data(&request, comm_info, recv_msg->index, end_index, root, datatype, fd, &addr);
 
