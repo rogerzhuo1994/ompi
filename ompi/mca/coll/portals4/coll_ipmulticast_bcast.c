@@ -803,11 +803,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                     int end_index = MIN(total_index, recv_msg->index+MAX(MIN_BCAST_PACKETS, ceil(total_index*0.05)));
 
-                    bcast_bulk_data(&request, comm_info, recv_msg->index, root, datatype, fd, &addr);
-                    print_rank_info();
-                    printf("NACK_MSG: inside seq, resend message, bytes = %d...\n", nbytes);
-
-                    if (nbytes < 0) perror("sendto");
+                    bcast_bulk_data(&request, comm_info, recv_msg->index, end_index, root, datatype, fd, &addr);
 
                 } else{
                     // not current bcast, skip
