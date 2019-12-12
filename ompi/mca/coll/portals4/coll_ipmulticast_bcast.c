@@ -435,6 +435,7 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
 
 int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         comm_info_t* comm_info,
+        int index,
         int root,
         struct ompi_datatype_t *datatype,
         int fd,
@@ -448,7 +449,6 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     size_t dt_size;
     ssize_t nbytes;
     char* send_next = request->data;
-    int index = 0;
     int startSeq = comm_info->proc_seq[globalrank];
 
     print_rank_info();
@@ -719,7 +719,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
         // First send the size so that the receivers know how many messages to expect
 		// TODO: There are better ways to do this, no?
-		bcast_bulk_data(&request, comm_info, root, datatype, fd, &addr);
+		bcast_bulk_data(&request, comm_info, 0, root, datatype, fd, &addr);
 
         //-------------------EDITED BY ROGER STARTS-----------------------
         //-------------------WAITING REPLIES------------------------------
@@ -802,22 +802,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if (recv_msg->sequence == startSeq && recv_msg->index < total_index && recv_msg->index >= 0){
                     // current bcast
-                    send_msg->msg_type = DT_MSG;
-                    send_msg->sender = globalrank;
-                    send_msg->t_size = request.data_size;
-                    send_msg->index = recv_msg->index;
-                    send_msg->sequence = recv_msg->sequence;
-                    send_msg->dt_size = MIN(request.data_size - send_msg->index * MAX_BCAST_SIZE, MAX_BCAST_SIZE);
-                    memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
-                    memcpy(send_msg->data, request.data+(send_msg->index*MAX_BCAST_SIZE), send_msg->dt_size);
-                    nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t)+send_msg->dt_size, 0, (struct sockaddr*) &addr, sizeof(addr));
-
-                    print_rank_info();
-                    printf("NACK_MSG: inside seq, resend message, bytes = %d...", nbytes);
-                    print_msg(send_msg);
-                    print_arr(send_msg->data, 20);
-                    printf("\n");
+                    bcast_bulk_data(&request, comm_info, recv_msg->index, root, datatype, fd, &addr);                    print_rank_info();
+                    printf("NACK_MSG: inside seq, resend message, bytes = %d...\n", nbytes);
 
                     if (nbytes < 0) perror("sendto");
 
