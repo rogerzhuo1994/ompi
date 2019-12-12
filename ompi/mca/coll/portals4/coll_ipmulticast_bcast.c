@@ -435,7 +435,8 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
 
 int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         comm_info_t* comm_info,
-        int index,
+        int start_index,
+        int end_index,
         int root,
         struct ompi_datatype_t *datatype,
         int fd,
@@ -447,12 +448,11 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
     ssize_t nbytes;
-    char* send_next = request->data + index * MAX_BCAST_SIZE;
+    char* send_next = request->data + start_index * MAX_BCAST_SIZE;
     int startSeq = comm_info->proc_seq[globalrank];
-    int total_index = (int)ceil(request->data_size / (double)MAX_BCAST_SIZE);
-    size_t size_remaining = request->data_size - index * MAX_BCAST_SIZE;
+    size_t size_remaining = request->data_size - start_index * MAX_BCAST_SIZE;
     print_rank_info();
-    printf("Bulk metadata: startIndex %d\n", index);
+    printf("Bulk metadata: startIndex %d\n", start_index);
 
     msg->msg_type = DT_MSG;
     msg->sender = globalrank;
@@ -461,9 +461,9 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     memcpy(msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
     // printf("Sent %zd for size\n", nbytes);
-    for (int i = index; i < total_index; i++){
+    for (int cur_index = start_index; cur_index < end_index; cur_index++){
         // TODO: UDP does not guarauntee ordering!!
-        msg->index = index;
+        msg->index = cur_index;
 
         dt_size = MIN(size_remaining, MAX_BCAST_SIZE);
         msg->dt_size = dt_size;
@@ -472,8 +472,6 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         print_rank_info();
         print_msg(msg);
         printf("\n");
-
-        index += 1;
 
         nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t) + msg->dt_size, 0, (struct sockaddr*) addr, sizeof(*addr));
 
@@ -719,7 +717,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
         // First send the size so that the receivers know how many messages to expect
 		// TODO: There are better ways to do this, no?
-		bcast_bulk_data(&request, comm_info, 0, root, datatype, fd, &addr);
+		bcast_bulk_data(&request, comm_info, 0, total_index, root, datatype, fd, &addr);
 
         //-------------------EDITED BY ROGER STARTS-----------------------
         //-------------------WAITING REPLIES------------------------------
@@ -802,6 +800,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if (recv_msg->sequence == startSeq && recv_msg->index < total_index && recv_msg->index >= 0){
                     // current bcast
+
+                    int end_index = MIN(total_index, recv_msg->index+MAX(MIN_BCAST_PACKETS, ceil(total_index*0.05)));
 
                     bcast_bulk_data(&request, comm_info, recv_msg->index, root, datatype, fd, &addr);
                     print_rank_info();
