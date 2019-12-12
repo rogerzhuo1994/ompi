@@ -1080,6 +1080,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     close(fd);
 	post_bcast_data(&request);
 
+	
 
 //    print_rank_info();
 //    printf("Jump out of received or send...\n");
