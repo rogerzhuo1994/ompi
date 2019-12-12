@@ -923,11 +923,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             }
 
 		    if (buf_flag == 1){
+                print_rank_info();
+                printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
                 buf_flag = find_msg_in_buffer(comm_info, root_globalrank, comm_info->proc_seq[root_globalrank]);
             }
-
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
 
             if (buf_flag == -1){
                 print_rank_info();
