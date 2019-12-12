@@ -444,26 +444,26 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     print_rank_info();
     printf("Start sending bulk data...\n");
 
-    size_t size_remaining = request->data_size;
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
     ssize_t nbytes;
     char* send_next = request->data + index * MAX_BCAST_SIZE;
     int startSeq = comm_info->proc_seq[globalrank];
+    int total_index = (int)ceil(request.data_size / (double)MAX_BCAST_SIZE);
 
     print_rank_info();
     printf("Bulk metadata: size %d, startSeq %d\n", size_remaining, startSeq);
 
     msg->msg_type = DT_MSG;
     msg->sender = globalrank;
-    msg->t_size = size_remaining;
+    msg->t_size = request->data_size;
     msg->sequence = comm_info->proc_seq[globalrank];
     memcpy(msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
 
 
     // printf("Sent %zd for size\n", nbytes);
-    while (size_remaining > 0) {
+    for (int i = index; i < total_index; i++){
         // TODO: UDP does not guarauntee ordering!!
         msg->index = index;
 
@@ -487,7 +487,6 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
             perror("sendto");
 
         // printf("Sent %zd\n", nbytes);
-        size_remaining -= msg->dt_size;
         send_next += msg->dt_size;
     }
     return 1;
