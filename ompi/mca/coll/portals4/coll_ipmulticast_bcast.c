@@ -449,7 +449,7 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     ssize_t nbytes;
     char* send_next = request->data + index * MAX_BCAST_SIZE;
     int startSeq = comm_info->proc_seq[globalrank];
-    int total_index = (int)ceil(request.data_size / (double)MAX_BCAST_SIZE);
+    int total_index = (int)ceil(request->data_size / (double)MAX_BCAST_SIZE);
 
     print_rank_info();
     printf("Bulk metadata: size %d, startSeq %d\n", size_remaining, startSeq);
@@ -459,8 +459,6 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     msg->t_size = request->data_size;
     msg->sequence = comm_info->proc_seq[globalrank];
     memcpy(msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
-
-
 
     // printf("Sent %zd for size\n", nbytes);
     for (int i = index; i < total_index; i++){
