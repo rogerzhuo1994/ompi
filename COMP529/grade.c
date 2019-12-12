@@ -168,6 +168,9 @@ int main(int argc, char** argv) {
 	double end = 0;
 
 	for (int i = 0; i < nrounds; i++) {
+
+		printf("Total %d round, current is %d\n", nrounds, i);
+
 		if (subcomm_rank == 0) {
 			printf("%d of %d\r", i, nrounds);
 			fflush(stdout);
