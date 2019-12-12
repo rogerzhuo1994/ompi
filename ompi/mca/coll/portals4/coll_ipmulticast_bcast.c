@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 
 #include "ompi_config.h"
 
@@ -605,7 +606,9 @@ int preprocess_recv_msg(int comm_info_index){
     return recv_msg_comm_info_index;
 }
 
-double calElapseTime(struct timeval* start_time, struct timeval* end_time){
+double calElapseTime(struct timeval* start_time){
+    struct timeval* end_time;
+    gettimeofday(end_time, NULL);
     return ((end_time->tv_sec - start_time->tv_sec) * 1000 + (end_time->tv_usec - start_time->tv_usec) / 1000.0);
 }
 
@@ -724,9 +727,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         int end_received = 0;
         int end_to_received = comm_info->size - 1;
         int end_received_proc[NUM_PROCESS];
-        struct timeval start_time, end_time;
+        struct timeval* start_time;
         double elapsedTime;
-        gettimeofday(&start_time, NULL);
+        gettimeofday(start_time, NULL);
 
         for (int i = 0; i < NUM_PROCESS; i++){
             end_received_proc[i] = -1;
@@ -744,9 +747,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         while (end_received < end_to_received) {
             int res = receive_msg(fd, &addr);
 
-            gettimeofday(&end_time, NULL);
-            elapsedTime = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_usec - start_time.tv_usec) / 1000.0;
-            if (elapsedTime > SENDER_HEARTBEAT_MILLS){
+            if (calElapseTime(start_time) > SENDER_HEARTBEAT_MILLS){
                 // send out a heartbeat
                 send_msg->msg_type = NACK_MSG;
                 send_msg->sender = globalrank;
@@ -769,7 +770,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if (nbytes < 0) perror("Sending heartbeat failure...");
 
-                gettimeofday(&start_time, NULL);
+                gettimeofday(start_time, NULL);
             }
 
             if (res == -1){
@@ -815,7 +816,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // if is current bcast, add 1
 
                 print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] END_MSG for current comm...");
+                printf(" [ompi_coll_ipmulticast_bcast] END_MSG for current comm...\n");
 
                 if (recv_msg->sequence != startSeq){
                     // probably not current bcast, skip
@@ -833,7 +834,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     print_arr(end_received_proc, NUM_PROCESS);
                     printf("\n");
 
-                } else if (end_received_proc[recv_msg->sender] == -1){
+                } else if (end_received_proc[recv_msg->sender] == 1) {
+                    print_rank_info();
+                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG has been seen before, skip, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
+                    print_arr(end_received_proc, NUM_PROCESS);
+                    printf("\n");
+                    continue;
+                } else (end_received_proc[recv_msg->sender] == -1){
                     perror("receiving wrong end_msg");
                 }
 
@@ -889,9 +896,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         int received_num = 0;
         memset(received_flags, 0, sizeof(received_flags));
 
-        struct timeval start_time, end_time;
+        struct timeval* start_time;
         double elapsedTime;
-        gettimeofday(&start_time, NULL);
+        gettimeofday(start_time, NULL);
 
         print_rank_info();
         printf(" [ompi_coll_ipmulticast_bcast] Start receiving data as receiver...\n");
@@ -899,9 +906,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		while (cur_index < total_index) {
 		    // receiving status
 
-            gettimeofday(&end_time, NULL);
-            elapsedTime = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_usec - start_time.tv_usec) / 1000.0;
-            if (elapsedTime > SENDER_HEARTBEAT_MILLS){
+            if (calElapseTime(start_time) > SENDER_HEARTBEAT_MILLS){
                 // send out a NACK msg
                 send_msg->msg_type = NACK_MSG;
                 send_msg->sender = globalrank;
@@ -919,7 +924,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 printf(" [ompi_coll_ipmulticast_bcast] Time for receiving elapsed, sending a NACK msg, nbytes=%d...", nbytes);
                 print_msg(send_msg);
 
-                gettimeofday(&start_time, NULL);
+                gettimeofday(start_time, NULL);
             }
 
 		    if (buf_flag == 1){
@@ -989,7 +994,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                         print_rank_info();
                         printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is not received, received_num=%d, cur_index=%d..\n", received_num, cur_index);
 
-                        gettimeofday(&start_time, NULL);
+                        gettimeofday(start_time, NULL);
                     } else if (seq > comm_info->proc_seq[sender]) {
                         print_rank_info();
                         printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is in future bcast, add to buffer\n");
@@ -1035,12 +1040,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         printf(" [ompi_coll_ipmulticast_bcast] Entering into acking stage\n");
 
 		// ack stage
-        gettimeofday(&start_time, NULL);
-        gettimeofday(&end_time, NULL);
-		while (calElapseTime(&start_time, &end_time) < MSG_LIVE_TIME){
+        gettimeofday(start_time, NULL);
+		while (calElapseTime(start_time) < MSG_LIVE_TIME){
             res = receive_msg(fd, &addr);
-
-            gettimeofday(&end_time, NULL);
 
             if (res == -1){
                 continue;
@@ -1095,7 +1097,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                     if (nbytes < 0) perror("sendto");
 
-                    gettimeofday(&start_time, NULL);
+                    gettimeofday(start_time, NULL);
                 }
             } else if (recv_msg->msg_type == END_MSG) {
                 print_rank_info();
@@ -1105,7 +1107,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 perror("wrong message");
             }
             print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] Acking Elapsed time: %d\n", calElapseTime(&start_time, &end_time));
+            printf(" [ompi_coll_ipmulticast_bcast] Acking Elapsed time: %f\n", calElapseTime(start_time));
 		}
         comm_info->proc_seq[root_globalrank] += 1;
     }
