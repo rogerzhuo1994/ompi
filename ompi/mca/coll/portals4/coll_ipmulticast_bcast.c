@@ -448,7 +448,7 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
     ssize_t nbytes;
-    char* send_next = request->data;
+    char* send_next = request->data + index * MAX_BCAST_SIZE;
     int startSeq = comm_info->proc_seq[globalrank];
 
     print_rank_info();
