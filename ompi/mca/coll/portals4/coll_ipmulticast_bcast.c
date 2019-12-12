@@ -840,7 +840,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     print_arr(end_received_proc, NUM_PROCESS);
                     printf("\n");
                     continue;
-                } else (end_received_proc[recv_msg->sender] == -1){
+                } else {
                     perror("receiving wrong end_msg");
                 }
 
