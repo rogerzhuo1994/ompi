@@ -593,6 +593,8 @@ int preprocess_recv_msg(int comm_info_index){
                 }
             }
         }else {
+            print_rank_info();
+            print_msg(recv_msg);
             perror("Wrong msg found, exit...");
         }
         return -1;
