@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-#define HUGEBUFFERSIZE (10*1024/8*1024*1024) // 10 GB
+#define HUGEBUFFERSIZE (1024/8*1024*1024) // 10 GB
 #define LARGEBUFFERSIZE (1000*100)  // approx 8 MB
 #define SMALLBUFFERSIZE 25 // approx 200 B
 
