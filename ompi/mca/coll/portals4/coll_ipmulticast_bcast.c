@@ -715,12 +715,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
         for (int i = 0; i < NUM_PROCESS; i++){
             end_received_proc[i] = -1;
+        }
+        for (int i = 0; i < NUM_PROCESS; i++){
             if (comm_info->global_ranks[i] > -1 && comm_info->global_ranks[i] != globalrank) {
                 end_received_proc[comm_info->global_ranks[i]] = 0;
-            } else {
-                end_received_proc[comm_info->global_ranks[i]] = -1;
             }
         }
+
         print_rank_info();
         printf(" [ompi_coll_ipmulticast_bcast] Start receiving response from receivers, startSeq = %d, receive_num = %d, receive_arr ", startSeq, end_to_received);
         print_arr(end_received_proc, NUM_PROCESS);
