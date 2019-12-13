@@ -149,13 +149,11 @@ void traverseQueue(Queue* queue){
     int count = 0;
     moveToHead(queue);
     while(queue->cur != -1){
-        TracePrintf(0, "traverseQueue: queue node %d: addr = %d", count, queue->cur);
         moveToNext(queue);
         count++;
     }
-    TracePrintf(0, "traverseQueue: total count = %d, queue length = %d", count, queue->length);
     if(count != queue->length){
-        Halt();
+        perror("Invalid Queue");
     }
 }
 
@@ -889,7 +887,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         moveToHead(buf);
         while(buf->cur != -1){
             msg = buf->cur->data;
-            if (msg->sequence == startSeq && msg->sender == root_globalrank ** received_flags[msg->index] == 1){
+            if (msg->sequence == startSeq && msg->sender == root_globalrank && received_flags[msg->index] == 1){
                 void* data = request.data + (msg->index * MAX_BCAST_SIZE);
                 memcpy(data, msg->data, msg->dt_size);
                 received_flags[msg->index] = 1;
