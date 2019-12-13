@@ -669,7 +669,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     rank = ompi_comm_rank(comm);
     globalrank = comm_info->global_ranks[rank];
     root_localrank = root;
-    root_globalrank = globalrank[root];
+    root_globalrank = comm_info->global_ranks[root];
 
     ompi_coll_ipmulticast_request_t request;
 
@@ -1069,7 +1069,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             print_msg(send_msg);
 
             if (nbytes < 0) perror("sendto");
-            
+
             res = receive_msg(fd, &addr);
 
             if (res == -1){
