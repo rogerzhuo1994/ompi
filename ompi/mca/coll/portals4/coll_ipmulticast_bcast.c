@@ -889,7 +889,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         moveToHead(buf);
         while(buf->cur != -1){
             msg = buf->cur->data;
-            if (msg->sequence == sequence && msg->sender == root_globalrank ** received_flags[msg->index] == 1){
+            if (msg->sequence == startSeq && msg->sender == root_globalrank ** received_flags[msg->index] == 1){
                 void* data = request.data + (msg->index * MAX_BCAST_SIZE);
                 memcpy(data, msg->data, msg->dt_size);
                 received_flags[msg->index] = 1;
