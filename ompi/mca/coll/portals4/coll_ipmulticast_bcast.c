@@ -26,6 +26,8 @@
 static int rank;
 static int globalrank;
 static int initialized;
+static int root_localrank;
+static int root_globalrank;
 
 typedef struct {
 	bool is_root;
@@ -255,7 +257,7 @@ static int post_bcast_data(ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
-int find_msg_in_buffer(comm_info_t* comm_info, int root_globalrank, int sequence){
+int find_msg_in_buffer(comm_info_t* comm_info, int sequence){
     Queue* buf = comm_info->msg_buffer;
     bcast_msg_t* msg;
     int count = 0;
@@ -553,6 +555,15 @@ int preprocess_recv_msg(int comm_info_index){
 
     print_rank_info();
     printf(" [preprocess_recv_msg] Comm_info got, idx = %d...\n", recv_msg_comm_info_index);
+
+//    // check for NACK MSG
+//    if (recv_msg->msg_type == NACK_MSG && recv_msg->index == -1 && recv_msg_comm_info->proc_seq[recv_msg->sender] > recv_msg->sequence) {
+//        // NACK message to ask for END_MSG
+//        print_rank_info();
+//        printf(" [preprocess_recv_msg] ");
+//    }
+
+
     // whether the message is from the same communicator
     if (recv_msg_comm_info_index != comm_info_index){
 
@@ -657,6 +668,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
     rank = ompi_comm_rank(comm);
     globalrank = comm_info->global_ranks[rank];
+    root_localrank = root;
+    root_globalrank = globalrank[root];
 
     ompi_coll_ipmulticast_request_t request;
 
@@ -880,7 +893,6 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 	else {
 		int addrlen = sizeof(addr);
 
-		int root_globalrank = comm_info->global_ranks[root];
 		if (root_globalrank < 0){
 		    perror("wrong root globalrank");
 		}
@@ -930,7 +942,7 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		    if (buf_flag == 1){
                 print_rank_info();
                 printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
-                buf_flag = find_msg_in_buffer(comm_info, root_globalrank, comm_info->proc_seq[root_globalrank]);
+                buf_flag = find_msg_in_buffer(comm_info, comm_info->proc_seq[root_globalrank]);
             }
 
             if (buf_flag == -1){
@@ -1042,6 +1054,22 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 		// ack stage
         gettimeofday(&start_time, NULL);
 		while (calElapseTime(&start_time) < MSG_LIVE_TIME){
+            // frequently send END_MSG
+            send_msg->msg_type = END_MSG;
+            send_msg->sender = globalrank;
+            send_msg->t_size = -1;
+            send_msg->index = -1;
+            send_msg->sequence = startSeq;
+            send_msg->dt_size = -1;
+            memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
+            nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
+
+            print_rank_info();
+            printf(" [ompi_coll_ipmulticast_bcast] send out an END_MSG...");
+            print_msg(send_msg);
+
+            if (nbytes < 0) perror("sendto");
+            
             res = receive_msg(fd, &addr);
 
             if (res == -1){
@@ -1081,22 +1109,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 }
             } else if (recv_msg->msg_type == NACK_MSG) {
                 if (sender == root_globalrank && recv_msg->sequence == startSeq) {
-                    // receive a NACK msg from sender, send a end msg
-                    send_msg->msg_type = END_MSG;
-                    send_msg->sender = globalrank;
-                    send_msg->t_size = -1;
-                    send_msg->index = -1;
-                    send_msg->sequence = startSeq;
-                    send_msg->dt_size = -1;
-                    memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
-                    nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
-
+                    // reset the timer
                     print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG in the same communicator and bcast, send out an END_MSG...");
+                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG in the same communicator and bcast, reset timer...\n");
                     print_msg(send_msg);
-
-                    if (nbytes < 0) perror("sendto");
-
                     gettimeofday(&start_time, NULL);
                 }
             } else if (recv_msg->msg_type == END_MSG) {
