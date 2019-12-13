@@ -722,8 +722,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
     ssize_t nbytes;
     if (request.is_root) {
 
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] Enter into root...\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] Enter into root...\n");
 
         addr.sin_addr.s_addr = inet_addr(IP_MULTICAST_ADDR);
         int startSeq = comm_info->proc_seq[globalrank];
@@ -752,10 +752,10 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 end_received_proc[comm_info->global_ranks[i]] = -1;
             }
         }
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] Start receiving response from receivers, startSeq = %d, receive_num = %d, receive_arr ", startSeq, end_to_received);
-        print_arr(end_received_proc, NUM_PROCESS);
-        printf("\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] Start receiving response from receivers, startSeq = %d, receive_num = %d, receive_arr ", startSeq, end_to_received);
+//        print_arr(end_received_proc, NUM_PROCESS);
+//        printf("\n");
 
         while (end_received < end_to_received) {
             int res = receive_msg(fd, &addr);
@@ -770,16 +770,16 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 send_msg->dt_size = -1;
                 memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] Timeout and sendout a heartbeat, received_num = %d, receive_arr ", end_received);
-                print_arr(end_received_proc, NUM_PROCESS);
-                printf("\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] Timeout and sendout a heartbeat, received_num = %d, receive_arr ", end_received);
+//                print_arr(end_received_proc, NUM_PROCESS);
+//                printf("\n");
 
                 nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] Sent a heartbeat, ");
-                print_msg(send_msg);
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] Sent a heartbeat, ");
+//                print_msg(send_msg);
 
                 if (nbytes < 0) perror("Sending heartbeat failure...");
 
@@ -787,15 +787,15 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             }
 
             if (res == -1){
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] A recv_msg is timeout...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] A recv_msg is timeout...\n");
                 continue;
             }
 
             res = preprocess_recv_msg(comm_info_index);
 
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
             if (res == -1){
                 continue;
             }
@@ -806,21 +806,21 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // check whether is current bcast
                 // if is current bcast, retransmit the message
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG for current comm ");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG for current comm ");
 
                 if (recv_msg->sequence == startSeq && recv_msg->index < total_index && recv_msg->index >= 0){
                     // current bcast
 
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG: inside seq\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG: inside seq\n");
 
                     int end_index = MIN(total_index, recv_msg->index+MAX(MIN_BCAST_PACKETS, ceil(total_index*0.01)));
                     bcast_bulk_data(&request, comm_info, recv_msg->index, end_index, root, datatype, fd, &addr);
                 } else{
                     // not current bcast, skip
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG: outside seq, skip\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG: outside seq, skip\n");
                     continue;
                 }
             }else if (recv_msg->msg_type == END_MSG){
@@ -828,13 +828,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // check whether is current bcast
                 // if is current bcast, add 1
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] END_MSG for current comm...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] END_MSG for current comm...\n");
 
                 if (recv_msg->sequence != startSeq){
                     // probably not current bcast, skip
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG not correct seq, seq=%d, startSeq=%d, skip...\n", recv_msg->sequence, startSeq);
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG not correct seq, seq=%d, startSeq=%d, skip...\n", recv_msg->sequence, startSeq);
                     continue;
                 }
 
@@ -842,16 +842,16 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     end_received_proc[recv_msg->sender] = 1;
                     end_received += 1;
 
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG updated, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
-                    print_arr(end_received_proc, NUM_PROCESS);
-                    printf("\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG updated, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
+//                    print_arr(end_received_proc, NUM_PROCESS);
+//                    printf("\n");
 
                 } else if (end_received_proc[recv_msg->sender] == 1) {
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG has been seen before, skip, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
-                    print_arr(end_received_proc, NUM_PROCESS);
-                    printf("\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] END_MSG has been seen before, skip, seq=%d, startSeq=%d, end_received=%d, end_to_recv=%d... ", recv_msg->sequence, startSeq, end_received, end_to_received);
+//                    print_arr(end_received_proc, NUM_PROCESS);
+//                    printf("\n");
                     continue;
                 } else {
                     perror("receiving wrong end_msg");
@@ -862,28 +862,28 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // check whether is stale message
                 // if is, skip, otherwise add to buffer
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG for current comm...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG for current comm...\n");
 
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
                 if (seq >= comm_info->proc_seq[sender]){
                     // future message, add to buffer
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] DT_MSG added to buffer...\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] DT_MSG added to buffer...\n");
                     recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
                         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
                     }
                 }
             }else {
-                print_rank_info();
-                print(" [ompi_coll_ipmulticast_bcast] invalid msg type, error \n");
+//                print_rank_info();
+//                print(" [ompi_coll_ipmulticast_bcast] invalid msg type, error \n");
                 perror("Wrong msg found, exit...");
             }
 
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] Processed a msg: startSeq=%d, end_received=%d, end_to_recv=%d... \n", startSeq, end_received, end_to_received);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] Processed a msg: startSeq=%d, end_received=%d, end_to_recv=%d... \n", startSeq, end_received, end_to_received);
         }
         comm_info->proc_seq[globalrank] += 1;
         //-------------------EDITED BY ROGER ENDS-------------------------
@@ -912,8 +912,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         double elapsedTime;
         gettimeofday(&start_time, NULL);
 
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] Start receiving data as receiver...\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] Start receiving data as receiver...\n");
 
 		while (cur_index < total_index) {
 		    // receiving status
@@ -932,22 +932,22 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
                 if (nbytes < 0) perror("sendto");
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] Time for receiving elapsed, sending a NACK msg, nbytes=%d...", nbytes);
-                print_msg(send_msg);
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] Time for receiving elapsed, sending a NACK msg, nbytes=%d...", nbytes);
+//                print_msg(send_msg);
 
                 gettimeofday(&start_time, NULL);
             }
 
 		    if (buf_flag == 1){
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
                 buf_flag = find_msg_in_buffer(comm_info, comm_info->proc_seq[root_globalrank]);
             }
 
             if (buf_flag == -1){
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] buffer does not have msg, start receiving...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] buffer does not have msg, start receiving...\n");
                 res = receive_msg(fd, &addr);
             }
 
@@ -960,14 +960,14 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 continue;
             }
 
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
 
             // the same communicator
             if (recv_msg->msg_type == DT_MSG){
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG in the same communicator...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG in the same communicator...\n");
 
                 int sender = recv_msg->sender;
                 int seq = recv_msg->sequence;
@@ -976,20 +976,20 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 // dt_msg from the same communicator
                 // check sender & sequence
                 if (sender == root_globalrank){
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is from the current sender\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is from the current sender\n");
 
                     if(seq == comm_info->proc_seq[sender] && idx < total_index) {
 
-                        print_rank_info();
-                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is in current bcast\n");
+//                        print_rank_info();
+//                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is in current bcast\n");
 
                         // current message, process
                         // TODO: process right message and buffer lookup
 
                         if (received_flags[idx] == 1) {
-                            print_rank_info();
-                            printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is already received, skip, received_num=%d, cur_index=%d..\n", received_num, cur_index);
+//                            print_rank_info();
+//                            printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is already received, skip, received_num=%d, cur_index=%d..\n", received_num, cur_index);
                             continue;
                         }
 
@@ -1003,13 +1003,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                             cur_index += 1;
                         }
 
-                        print_rank_info();
-                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is not received, received_num=%d, cur_index=%d..\n", received_num, cur_index);
+//                        print_rank_info();
+//                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is not received, received_num=%d, cur_index=%d..\n", received_num, cur_index);
 
                         gettimeofday(&start_time, NULL);
                     } else if (seq > comm_info->proc_seq[sender]) {
-                        print_rank_info();
-                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is in future bcast, add to buffer\n");
+//                        print_rank_info();
+//                        printf(" [ompi_coll_ipmulticast_bcast] The DT_MSG received is in future bcast, add to buffer\n");
 
                         // future message, add to buffer
                         recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
@@ -1019,13 +1019,13 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     }
 
                 } else {
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] MSG is not from the current sender\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] MSG is not from the current sender\n");
 
                     if (seq >= comm_info->proc_seq[sender]){
 
-                        print_rank_info();
-                        printf(" [ompi_coll_ipmulticast_bcast] MSG is in future bcast, add to buffer\n");
+//                        print_rank_info();
+//                        printf(" [ompi_coll_ipmulticast_bcast] MSG is in future bcast, add to buffer\n");
 
                         // future message, add to buffer
                         recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
@@ -1036,20 +1036,20 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                     // do nothing for stale message
                 }
             } else if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG) {
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] NACK or END MSG in the same communicator, skip...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] NACK or END MSG in the same communicator, skip...\n");
                 continue;
             } else {
                 perror("wrong message");
             }
 		}
 
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] -------------------------------------\n");
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] -------------------------------------\n");
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] Entering into acking stage\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] -------------------------------------\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] -------------------------------------\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] Entering into acking stage\n");
 
 		// ack stage
         gettimeofday(&start_time, NULL);
@@ -1064,9 +1064,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             memcpy(send_msg->receiver, comm_info->global_ranks, sizeof(comm_info->global_ranks));
             nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t), 0, (struct sockaddr*) &addr, sizeof(addr));
 
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] send out an END_MSG...");
-            print_msg(send_msg);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] send out an END_MSG...");
+//            print_msg(send_msg);
 
             if (nbytes < 0) perror("sendto");
 
@@ -1077,15 +1077,15 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             }
 
             res = preprocess_recv_msg(comm_info_index);
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
 
             if (res == -1){
                 continue;
             }
 
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] preprocessing ends, comm_id = %d...\n", res);
 
             int sender = recv_msg->sender;
             int seq = recv_msg->sequence;
@@ -1093,14 +1093,14 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             // the same communicator
             if (recv_msg->msg_type == DT_MSG){
 
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG from the same communicator\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] DT_MSG from the same communicator\n");
 
                 if ((sender == root_globalrank && seq > comm_info->proc_seq[sender])
                     || (sender != root_globalrank && seq >= comm_info->proc_seq[sender])) {
 
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] DT_MSG in future bcast, add to buffer\n");
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] DT_MSG in future bcast, add to buffer\n");
 
                     recv_msg = enQueue(comm_info->msg_buffer, recv_msg);
                     if (recv_msg == -1){
@@ -1110,28 +1110,28 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
             } else if (recv_msg->msg_type == NACK_MSG) {
                 if (sender == root_globalrank && recv_msg->sequence == startSeq) {
                     // reset the timer
-                    print_rank_info();
-                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG in the same communicator and bcast, reset timer...\n");
-                    print_msg(send_msg);
+//                    print_rank_info();
+//                    printf(" [ompi_coll_ipmulticast_bcast] NACK_MSG in the same communicator and bcast, reset timer...\n");
+//                    print_msg(send_msg);
                     gettimeofday(&start_time, NULL);
                 }
             } else if (recv_msg->msg_type == END_MSG) {
-                print_rank_info();
-                printf(" [ompi_coll_ipmulticast_bcast] END_MSG in the same communicator skip...\n");
+//                print_rank_info();
+//                printf(" [ompi_coll_ipmulticast_bcast] END_MSG in the same communicator skip...\n");
                 continue;
             } else {
                 perror("wrong message");
             }
-            print_rank_info();
-            printf(" [ompi_coll_ipmulticast_bcast] Acking Elapsed time: %f\n", calElapseTime(&start_time));
+//            print_rank_info();
+//            printf(" [ompi_coll_ipmulticast_bcast] Acking Elapsed time: %f\n", calElapseTime(&start_time));
 		}
         comm_info->proc_seq[root_globalrank] += 1;
     }
     close(fd);
 	post_bcast_data(&request);
 
-    print_rank_info();
-    printf(" [ompi_coll_ipmulticast_bcast] Jump out of received or send...\n");
+//    print_rank_info();
+//    printf(" [ompi_coll_ipmulticast_bcast] Jump out of received or send...\n");
 
 //    if (rank != root){
 //        int *data = (int *)request.data;
