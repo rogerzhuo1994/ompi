@@ -621,7 +621,7 @@ void print_msg(bcast_msg_t* msg){
 int ompi_coll_ipmulticast_bcast(void *buff, int count,
         struct ompi_datatype_t *datatype, int root,
         struct ompi_communicator_t *comm,mca_coll_base_module_t *module) {
-    printf("Calling custom bcast\n");
+//    printf("Calling custom bcast\n");
 
     if (initialized == 0){
 
