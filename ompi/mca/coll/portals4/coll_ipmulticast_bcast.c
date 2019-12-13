@@ -280,15 +280,15 @@ int find_msg_in_buffer(comm_info_t* comm_info, int sequence){
 }
 
 int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
-    print_rank_info();
-    printf(" [initialize_comm_info] Finding new comm location.\n");
+//    print_rank_info();
+//    printf(" [initialize_comm_info] Finding new comm location.\n");
 
     int idx = -1;
     for(int i = 0; i < MAX_COMM; i++){
 
-        print_rank_info();
-        printf(" [initialize_comm_info] looping %dth comm, ", i);
-        print_comm_info(&(comm_infos[i]));
+//        print_rank_info();
+//        printf(" [initialize_comm_info] looping %dth comm, ", i);
+//        print_comm_info(&(comm_infos[i]));
 
         if (comm_infos[i].initialized == 0) {
             idx = i;
@@ -296,8 +296,8 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
         }
     }
 
-    print_rank_info();
-    printf(" [initialize_comm_info] Location found: %d.\n", idx);
+//    print_rank_info();
+//    printf(" [initialize_comm_info] Location found: %d.\n", idx);
 
     if (idx == -1) return -1;
 
@@ -320,8 +320,8 @@ int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
 int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     // get the global information of current comm to find them
 
-    print_rank_info();
-    printf(" [find_comm_info] Finding comm_info...\n");
+//    print_rank_info();
+//    printf(" [find_comm_info] Finding comm_info...\n");
 
     ompi_group_t *thisgroup, *worldgroup;
     ompi_comm_group((ompi_communicator_t*)comm, &thisgroup);
@@ -338,18 +338,18 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
     }
     ompi_group_translate_ranks(thisgroup, size, localranks, worldgroup, globalranks);
 
-    print_rank_info();
-    printf(" [find_comm_info] global ranks of comm: ");
-    print_arr(globalranks, NUM_PROCESS);
-    printf("\n");
+//    print_rank_info();
+//    printf(" [find_comm_info] global ranks of comm: ");
+//    print_arr(globalranks, NUM_PROCESS);
+//    printf("\n");
 
-    print_rank_info();
-    printf(" [find_comm_info] Start matching comms...\n");
+//    print_rank_info();
+//    printf(" [find_comm_info] Start matching comms...\n");
 
     for(int i = 0; i < MAX_COMM; i++){
-        print_rank_info();
-        printf(" [find_comm_info] loopinf %dth comm, ", i);
-        print_comm_info(&(comm_infos[i]));
+//        print_rank_info();
+//        printf(" [find_comm_info] loopinf %dth comm, ", i);
+//        print_comm_info(&(comm_infos[i]));
 
         int flag = 1;
         if (comm_infos[i].initialized == 0) break;
@@ -362,24 +362,24 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
             }
         }
         if (flag == 1){
-            print_rank_info();
-            printf(" [find_comm_info] Comm found! %dth comm, ", i);
-            print_comm_info(&(comm_infos[i]));
-            printf("\n");
+//            print_rank_info();
+//            printf(" [find_comm_info] Comm found! %dth comm, ", i);
+//            print_comm_info(&(comm_infos[i]));
+//            printf("\n");
 
             *comm_info = &(comm_infos[i]);
             return 0;
         }
     }
 
-    print_rank_info();
-    printf(" [find_comm_info] Matching comm not found, start creating one\n");
+//    print_rank_info();
+//    printf(" [find_comm_info] Matching comm not found, start creating one\n");
 
     int initialized = initialize_comm_info(comm_info, size, globalranks);
 
-    print_rank_info();
-    printf(" [find_comm_info] New comm created, idx = %d, ", initialized);
-    print_comm_info(&comm_infos[initialized]);
+//    print_rank_info();
+//    printf(" [find_comm_info] New comm created, idx = %d, ", initialized);
+//    print_comm_info(&comm_infos[initialized]);
 
     if (initialized == -1){
         perror("Communicator array is full, cannot use new communicator...");
@@ -389,8 +389,8 @@ int find_comm_info(comm_info_t** comm_info, ompi_communicator_t *comm){
 
 int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
 
-    print_rank_info();
-    printf(" [find_msg_comm_info] Finding comm_info for msg...\n");
+//    print_rank_info();
+//    printf(" [find_msg_comm_info] Finding comm_info for msg...\n");
 
     int* globalranks = msg->receiver;
 
@@ -414,22 +414,22 @@ int find_msg_comm_info(comm_info_t** comm_info, bcast_msg_t* msg){
         if (flag == 1){
             *comm_info = &(comm_infos[i]);
 
-            print_rank_info();
-            printf(" [find_msg_comm_info] Comm_info found, %d the comm...", i);
-            print_comm_info(*comm_info);
+//            print_rank_info();
+//            printf(" [find_msg_comm_info] Comm_info found, %d the comm...", i);
+//            print_comm_info(*comm_info);
 
             return 0;
         }
     }
 
-    print_rank_info();
-    printf(" [find_msg_comm_info] Comm_info not found, start creating one...\n");
+//    print_rank_info();
+//    printf(" [find_msg_comm_info] Comm_info not found, start creating one...\n");
 
     int initialized = initialize_comm_info(comm_info, size, globalranks);
 
-    print_rank_info();
-    printf(" [find_msg_comm_info] New comm created, idx = %d, ", initialized);
-    print_comm_info(&comm_infos[initialized]);
+//    print_rank_info();
+//    printf(" [find_msg_comm_info] New comm created, idx = %d, ", initialized);
+//    print_comm_info(&comm_infos[initialized]);
 
     if (initialized == -1){
         perror("Communicator array is full, cannot use new communicator...");
@@ -447,8 +447,8 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
         int fd,
         struct sockaddr_in* addr){
 
-    print_rank_info();
-    printf(" [bcast_bulk_data] Start sending bulk data, startIndex=%d, endIndex=%d...\n", start_index, end_index);
+//    print_rank_info();
+//    printf(" [bcast_bulk_data] Start sending bulk data, startIndex=%d, endIndex=%d...\n", start_index, end_index);
 
     bcast_msg_t *msg = (bcast_msg_t*)send_msg;
     size_t dt_size;
@@ -474,9 +474,9 @@ int bcast_bulk_data(ompi_coll_ipmulticast_request_t *request,
 
         nbytes = sendto(fd, send_msg, sizeof(bcast_msg_t) + msg->dt_size, 0, (struct sockaddr*) addr, sizeof(*addr));
 
-        print_rank_info();
-        printf(" [bcast_bulk_data] Message sent: %dth msg, nbytes: %d, ", msg->index, nbytes);
-        print_msg(msg);
+//        print_rank_info();
+//        printf(" [bcast_bulk_data] Message sent: %dth msg, nbytes: %d, ", msg->index, nbytes);
+//        print_msg(msg);
 
         if (nbytes < 0 || nbytes != sizeof(bcast_msg_t) + msg->dt_size)
             perror("sendto");
@@ -495,19 +495,19 @@ int receive_msg(int fd,
     nbytes = recvfrom(fd, recv_msg, MAX_MSG_SIZE, 0, (struct sockaddr *) addr, &addrlen);
     if(nbytes < 0){
       // timeout return -1
-      print_rank_info();
-      printf(" [receive_msg] receive msg timeout: nbytes = %d\n", nbytes);
+//      print_rank_info();
+//      printf(" [receive_msg] receive msg timeout: nbytes = %d\n", nbytes);
       return -1;
     }
 
-    print_rank_info();
-    printf(" [receive_msg] receive a msg: nbytes = %d, ", nbytes);
-    print_msg(recv_msg);
+//    print_rank_info();
+//    printf(" [receive_msg] receive a msg: nbytes = %d, ", nbytes);
+//    print_msg(recv_msg);
 
-    print_rank_info();
-    printf(" [receive_msg] received data: ");
-    print_arr(recv_msg->data, 20);
-    printf("\n");
+//    print_rank_info();
+//    printf(" [receive_msg] received data: ");
+//    print_arr(recv_msg->data, 20);
+//    printf("\n");
 
     if (recv_msg->msg_type == DT_MSG && nbytes != sizeof(bcast_msg_t) + recv_msg->dt_size){
         perror("Received invalid dt_msg...");
@@ -523,13 +523,13 @@ int preprocess_recv_msg(int comm_info_index){
     // whether it's from myself
     // if from myself, skip
 
-    print_rank_info();
-    printf(" [preprocess_recv_msg] Preprocess msg: ");
-    print_msg(recv_msg);
+//    print_rank_info();
+//    printf(" [preprocess_recv_msg] Preprocess msg: ");
+//    print_msg(recv_msg);
 
     if (recv_msg->sender == globalrank){
-        print_rank_info();
-        printf(" [preprocess_recv_msg] Sender is from myself, skip\n");
+//        print_rank_info();
+//        printf(" [preprocess_recv_msg] Sender is from myself, skip\n");
         return -1;
     }
 
@@ -543,8 +543,8 @@ int preprocess_recv_msg(int comm_info_index){
         }
     }
     if (flag == -1){
-        print_rank_info();
-        printf(" [preprocess_recv_msg] I'm not the receiver, skip\n");
+//        print_rank_info();
+//        printf(" [preprocess_recv_msg] I'm not the receiver, skip\n");
         return -1;
     }
 
@@ -553,22 +553,15 @@ int preprocess_recv_msg(int comm_info_index){
     comm_info_t* recv_msg_comm_info;
     int recv_msg_comm_info_index = find_msg_comm_info(&recv_msg_comm_info, recv_msg);
 
-    print_rank_info();
-    printf(" [preprocess_recv_msg] Comm_info got, idx = %d...\n", recv_msg_comm_info_index);
-
-//    // check for NACK MSG
-//    if (recv_msg->msg_type == NACK_MSG && recv_msg->index == -1 && recv_msg_comm_info->proc_seq[recv_msg->sender] > recv_msg->sequence) {
-//        // NACK message to ask for END_MSG
-//        print_rank_info();
-//        printf(" [preprocess_recv_msg] ");
-//    }
+//    print_rank_info();
+//    printf(" [preprocess_recv_msg] Comm_info got, idx = %d...\n", recv_msg_comm_info_index);
 
 
     // whether the message is from the same communicator
     if (recv_msg_comm_info_index != comm_info_index){
 
-        print_rank_info();
-        printf(" [preprocess_recv_msg] not the same comm_info with current Bcast\n", recv_msg_comm_info_index);
+//        print_rank_info();
+//        printf(" [preprocess_recv_msg] not the same comm_info with current Bcast\n", recv_msg_comm_info_index);
 
         // not the same communicator
         if (recv_msg->msg_type == NACK_MSG || recv_msg->msg_type == END_MSG){
@@ -579,8 +572,8 @@ int preprocess_recv_msg(int comm_info_index){
             // end_msg from other communicator,
             // when I'm the root, this end_msg is definitely not for me, skip
 
-            print_rank_info();
-            printf(" [preprocess_recv_msg] non-dt_msg, skip...\n");
+//            print_rank_info();
+//            printf(" [preprocess_recv_msg] non-dt_msg, skip...\n");
 
             return -1;
 
@@ -591,14 +584,14 @@ int preprocess_recv_msg(int comm_info_index){
             int seq = recv_msg->sequence;
             if (seq < recv_msg_comm_info->proc_seq[sender]){
                 // stale message, skip
-                print_rank_info();
-                printf(" [preprocess_recv_msg] stale dt_msg, skip, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
+//                print_rank_info();
+//                printf(" [preprocess_recv_msg] stale dt_msg, skip, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
                 return -1;
             }else {
                 // future message, add to buffer
 
-                print_rank_info();
-                printf(" [preprocess_recv_msg] future dt_msg, buffer, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
+//                print_rank_info();
+//                printf(" [preprocess_recv_msg] future dt_msg, buffer, seq = %d, cur = %d...\n", recv_msg->sequence, recv_msg_comm_info->proc_seq[sender]);
 
                 recv_msg = enQueue(recv_msg_comm_info->msg_buffer, recv_msg);
                 if (recv_msg == -1){
@@ -606,9 +599,9 @@ int preprocess_recv_msg(int comm_info_index){
                 }
             }
         }else {
-            print_rank_info();
-            printf(" [preprocess_recv_msg] wrong msg found... ");
-            print_msg(recv_msg);
+//            print_rank_info();
+//            printf(" [preprocess_recv_msg] wrong msg found... ");
+//            print_msg(recv_msg);
             perror("Wrong msg found, exit...");
         }
         return -1;
@@ -656,8 +649,8 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
 
     if (initialized == 0){
 
-        print_rank_info();
-        printf(" [ompi_coll_ipmulticast_bcast] Initialize: allocating recv_msg & send_msg\n");
+//        print_rank_info();
+//        printf(" [ompi_coll_ipmulticast_bcast] Initialize: allocating recv_msg & send_msg\n");
         recv_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
         send_msg = (bcast_msg_t*)malloc(MAX_MSG_SIZE);
         initialized = 1;
