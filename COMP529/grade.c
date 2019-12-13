@@ -7,8 +7,8 @@
 #include <string.h>
 
 
-#define HUGEBUFFERSIZE (10*1024*1024) // 10 GB
-#define LARGEBUFFERSIZE (1000*100)  // approx 8 MB
+#define HUGEBUFFERSIZE (10*1024/8*1024*1024) // 10 GB
+#define LARGEBUFFERSIZE (1000*1000)  // approx 8 MB
 #define SMALLBUFFERSIZE 25 // approx 200 B
 
 #define RUNTIME 1.0 // seconds
