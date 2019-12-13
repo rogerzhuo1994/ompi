@@ -257,28 +257,6 @@ static int post_bcast_data(ompi_coll_ipmulticast_request_t *request) {
     return (OMPI_SUCCESS);
 }
 
-int find_msg_in_buffer(comm_info_t* comm_info, int sequence){
-    Queue* buf = comm_info->msg_buffer;
-    bcast_msg_t* msg;
-    int count = 0;
-
-    moveToHead(buf);
-    while(buf->cur != -1){
-        msg = buf->cur->data;
-        if (msg->sequence == sequence && msg->sender == root_globalrank){
-            free(recv_msg);
-            recv_msg = pop(buf, buf->cur);
-            return 1;
-        }
-        moveToNext(buf);
-        count++;
-    }
-    if(count != buf->length){
-        perror("buffer length error");
-    }
-    return -1;
-}
-
 int initialize_comm_info(comm_info_t** comm_info, int size, int globalranks[]){
 //    print_rank_info();
 //    printf(" [initialize_comm_info] Finding new comm location.\n");
@@ -905,6 +883,27 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
         double elapsedTime;
         gettimeofday(&start_time, NULL);
 
+        Queue* buf = comm_info->msg_buffer;
+        bcast_msg_t* msg;
+
+        moveToHead(buf);
+        while(buf->cur != -1){
+            msg = buf->cur->data;
+            if (msg->sequence == sequence && msg->sender == root_globalrank ** received_flags[msg->index] == 1){
+                void* data = request.data + (msg->index * MAX_BCAST_SIZE);
+                memcpy(data, msg->data, msg->dt_size);
+                received_flags[msg->index] = 1;
+                received_num += 1;
+
+                while (received_flags[cur_index] == 1 && cur_index < total_index){
+                    cur_index += 1;
+                }
+                free(msg);
+            }
+            moveToNext(buf);
+            count++;
+        }
+
 //        print_rank_info();
 //        printf(" [ompi_coll_ipmulticast_bcast] Start receiving data as receiver...\n");
 
@@ -932,17 +931,9 @@ int ompi_coll_ipmulticast_bcast(void *buff, int count,
                 gettimeofday(&start_time, NULL);
             }
 
-		    if (buf_flag == 1){
-//                print_rank_info();
-//                printf(" [ompi_coll_ipmulticast_bcast] check buffer first, buf_flag = %d...\n", buf_flag);
-                buf_flag = find_msg_in_buffer(comm_info, comm_info->proc_seq[root_globalrank]);
-            }
-
-            if (buf_flag == -1){
-//                print_rank_info();
-//                printf(" [ompi_coll_ipmulticast_bcast] buffer does not have msg, start receiving...\n");
-                res = receive_msg(fd, &addr);
-            }
+//		    print_rank_info();
+//		    printf(" [ompi_coll_ipmulticast_bcast] buffer does not have msg, start receiving...\n");
+            res = receive_msg(fd, &addr);
 
             if (res == -1){
                 continue;
