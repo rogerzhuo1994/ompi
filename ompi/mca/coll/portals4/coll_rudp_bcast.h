@@ -64,25 +64,25 @@ void traverseQueue(Queue* queue);
 
 
 typedef struct _bcast_msg_t {
-    int msg_type;
-    int sender;
-    int receiver[NUM_PROCESS];
-    long sequence;
-    size_t t_size;
-    size_t dt_size;
-    int index;
-    char data[];
+    int msg_type;               // message type, for different purpose
+    int sender;                 // global rank of sender
+    int receiver[NUM_PROCESS];  // global rank of receivers
+    long sequence;              // sequence number
+    size_t t_size;              // current Bcast's total data size. I found it redundant.
+    size_t dt_size;             // current packet's data size. I found it redundant.
+    int index;                  // index of packet in Bcast
+    char data[];                // data
 } bcast_msg_t;
 
 #define MAX_MSG_SIZE (sizeof(bcast_msg_t) + MAX_BCAST_SIZE)
 
 
 typedef struct _comm_info_t {
-    int proc_seq[NUM_PROCESS];
-    int size;
-    int global_ranks[NUM_PROCESS];
-    int initialized;
-    Queue* msg_buffer;
+    int proc_seq[NUM_PROCESS];      // process's sequence number in this communicator
+    int size;                       // # of ranks in this communicator
+    int global_ranks[NUM_PROCESS];  // global ranks of processes
+    int initialized;                // initialized or not
+    Queue* msg_buffer;              // buffer
 } comm_info_t;
 
 static comm_info_t comm_infos[MAX_COMM];
